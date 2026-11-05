@@ -129,6 +129,7 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .frow span { display: flex; flex-direction: column; min-width: 0; }
 .frow small { font-size: 12px; color: var(--muted); font-family: var(--mono); }
 .frow em { font-style: normal; font-size: 12px; color: var(--amber); white-space: nowrap; }
+.fd { color: var(--amber); }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -228,7 +229,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 4, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 5, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
@@ -236,7 +237,8 @@ function newState(o) {
     active: false, vids: 0, teleCd: 0, maxPal: 0, won: false,
     totalEarned: 0, weekIn: 0, weekOut: 0, pending: null, report: null,
     moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0,
-    markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0
+    markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0,
+    fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0
   };
 }
 
@@ -252,7 +254,8 @@ function migrate(S) {
   if (S && S.v === 1) Object.assign(S, { v: 2, prenom: S.name, sexe: "h", age: 25 });
   if (S && S.v === 2) { Object.assign(S, { v: 3, moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0 }); S.songs.forEach(s => { s.cert = 0; }); }
   if (S && S.v === 3) Object.assign(S, { v: 4, markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0 });
-  return S && S.v === 4 ? S : null;
+  if (S && S.v === 4) Object.assign(S, { v: 5, fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0 });
+  return S && S.v === 5 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -323,7 +326,7 @@ function recordSong(S, id, st) {
 }
 function streamBase(S, s, mult) {
   const trend = GENRES[S.trend] === s.genre ? 1.4 : 1;
-  return (S.fans * reach(S) + 250 + (s.feat ? s.feat.f * 0.6 : 0)) * Math.pow(s.note / 60, 2.2) * trend * (S.label ? 2.5 : 1) * mult;
+  return (S.fans * reach(S) + 250 + (s.feat ? s.feat.f * 0.6 : 0)) * Math.pow(s.note / 60, 2.2) * eraMult(S) * trend * (S.label ? 2.5 : 1) * mult;
 }
 function releaseSong(S, id) {
   const s = S.songs.find(x => x.id === id);
@@ -351,6 +354,7 @@ function releaseAlbum(S, promo, name) {
   const sales = Math.round(S.fans * reach(S) * 0.015 * k * p.m * 13 * (S.label ? 0.3 : 1));
   S.fans += fg; earn(S, sales);
   const t = (name || "").trim() || pool[0].title;
+  newEra(S, t);
   const m = `Album « ${t} » sorti (${pool.length} titres, note moyenne ${Math.round(avg)}) : +${fmt(fg)} fans, ventes ${fmt(sales)} €.`;
   log(S, m); return m;
 }
@@ -372,7 +376,8 @@ function concert(S, vid, dates) {
     let a, f, r = 0;
     if (v.type === "ticket") {
       a = Math.round(Math.min(v.cap, S.fans * 0.06 * (0.6 + sc / 100) * rnd(0.85, 1.1)));
-      f = a * (0.15 + sc / 300); r = a * v.prix * (has(S, "manager") ? 1.2 : 1) - v.cout;
+      f = a * (0.15 + sc / 300); r = a * v.prix * showMult(S) * (has(S, "manager") ? 1.2 : 1) - v.cout;
+      f *= showMult(S);
     } else {
       a = Math.round(v.cap * rnd(0.6, 1));
       f = a * (S.voix + sc) / 200 * (v.type === "fest" ? 0.25 : 1.5);
@@ -430,12 +435,13 @@ function endWeek(S) {
     lines.push(`${fmt(st)} écoutes : +${fmtc(rev)} €, +${fmt(Math.round(sf))} fans`);
   }
   // discrétion
-  if (!S.active && S.fans > 50) { const l = Math.round(S.fans * 0.015); S.fans -= l; lines.push(`Semaine discrète : −${fmt(l)} fans`); }
+  if (!S.active && S.fans > 50) { const l = Math.round(S.fans * 0.015 * loyalty(S)); S.fans -= l; lines.push(`Semaine discrète : −${fmt(l)} fans`); }
   // frais de vie
   const p = palier(S.fans), lv = LIVING[p]; spend(S, lv);
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
   bizWeek(S, lines);
+  const pr = { p: null }; starWeek(S, lines, pr);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -459,7 +465,7 @@ function endWeek(S) {
   S.energy = Math.min(100, S.energy + 60 + HOUSING[S.housing].e + (has(S, "coach") ? 10 : 0) - (S.moral < 15 ? 15 : 0)); S.active = false; S.vids = 0; if (S.teleCd > 0) S.teleCd--;
   S.week++;
   // palier
-  let pend = null; const np = palier(S.fans);
+  let pend = pr.p; const np = palier(S.fans);
   if (np > S.maxPal) {
     S.maxPal = np; lines.push(`Nouveau palier : ${palName(S, np)} !`); log(S, `Palier atteint : ${palName(S, np)}.`);
     if (np >= 3 && !S.flags.labelOffered) {
@@ -519,7 +525,7 @@ const CHART_ARTISTS = ["Nora Vale", "Les Brumes", "Kalix", "Mira Sol", "DJ Osten
 const CHART_TITLES = ["Plus haut", "Minuit", "Carrousel", "Fièvre", "Ma rive", "Orage", "Dernière danse", "Papillons", "Kilomètres", "Satellite", "Rien à perdre", "Cœur en verre", "Nuits blanches", "Bleu nuit", "Feu de camp", "Ailleurs", "À l'envers", "Sirène", "Promesse", "Comète"];
 
 function has(S, id) { return !!(S.team && S.team[id]); }
-function img(S) { return 1 + HOUSING[S.housing].img + CARS[S.car].img; }
+function img(S) { return 1 + HOUSING[S.housing].img + CARS[S.car].img + lookImg(S); }
 function sceneEff(S) { return Math.min(110, S.scene + (has(S, "band") ? 15 : 0)); }
 function moralMult(S) { return S.moral < 25 ? 0.6 : S.moral < 45 ? 0.85 : 1; }
 function gigE(S, e) { return Math.max(10, e - CARS[S.car].ge); }
@@ -691,7 +697,7 @@ function tourAbroad(S, id) {
   if (!m || pr < 40 || S.energy < gigE(S, 70)) return null;
   const cost = Math.round(m.tour * 0.35); if (S.money < cost) return null;
   S.energy -= gigE(S, 70); S.active = true;
-  const rev = Math.round(m.tour * pr / 100 * (0.6 + sceneEff(S) / 150) * (has(S, "manager") ? 1.2 : 1));
+  const rev = Math.round(m.tour * pr / 100 * (0.6 + sceneEff(S) / 150) * showMult(S) * (has(S, "manager") ? 1.2 : 1));
   const fg = Math.round((6000 + S.fans * 0.01) * m.w * pr / 100 * (has(S, "chorus") ? 1.25 : 1) * sat(S));
   spend(S, cost); earn(S, rev); S.fans += fg; S.gigAud += Math.round(rev / 50); S.markets[id] = clamp(pr + 4, 0, 100);
   S.moral = clamp(S.moral + 6, 0, 100);
@@ -798,6 +804,133 @@ function bizWeek(S, lines) {
   S.gigAud = 0; S.posts = 0;
 }
 function netWorth(S) { return S.money + S.inv.ep + S.inv.etf + S.inv.immo.reduce((a, v) => a + v, 0); }
+// ===== MyStar — looks, ères, shows, cinéma, engagement =====
+const LOOKS = [
+  { n: "Sobre et naturel", d: "Jean, t-shirt, zéro risque", prix: 0, a: 0 },
+  { n: "Rétro glamour", d: "Paillettes, années 70, élégance", prix: 3000, a: 1 },
+  { n: "Futuriste", d: "Latex, chrome, lentilles colorées", prix: 15000, a: 2 },
+  { n: "Avant-garde extrême", d: "Robes sculptures, tenues impossibles, on ne parle que de toi", prix: 60000, a: 3 }
+];
+const SCENO = [
+  { n: "Un micro et des spots", prix: 0 },
+  { n: "Écrans LED géants", prix: 25000 },
+  { n: "Troupe de danseurs", prix: 90000 },
+  { n: "Pyrotechnie et costumes changeants", prix: 300000 },
+  { n: "Plateforme volante et scène mobile", prix: 1200000 }
+];
+const CAUSES = ["Santé mentale", "Égalité et droits LGBTQIA+", "Climat", "Éducation des enfants", "Lutte contre le harcèlement"];
+const FILM_T = ["Le dernier rappel", "Étoile filante", "Sous les projecteurs", "Nuit à Ostende", "La voix du nord", "Rouge velours", "Ceux qui restent", "L'envol"];
+
+function lookImg(S) { return LOOKS[S.look].a * 0.04; }
+function eraMult(S) { return S.era ? 0.85 + S.era.fresh * 0.003 : 1; }
+function showMult(S) { return 1 + S.sceno * 0.15; }
+function loyalty(S) { return (S.fandom ? 0.5 : 1) * (1 - Math.min(0.5, S.impact / 200)); }
+
+function setFandom(S, name) {
+  name = (name || "").trim(); if (!name || S.fandom || palier(S.fans) < 2) return null;
+  S.fandom = name; S.buzz = clamp(S.buzz + 10, -50, 50);
+  const m = `Tes fans s'appellent désormais « ${name} ». Ils te restent plus fidèles.`; log(S, m); return m;
+}
+function setLook(S, i) {
+  const l = LOOKS[i]; if (!l || i === S.look || S.money < l.prix) return null;
+  spend(S, l.prix); S.look = i; S.buzz = clamp(S.buzz + l.a * 3, -50, 50);
+  const m = `Nouveau look : ${l.n.toLowerCase()}.`; log(S, m); return m;
+}
+// appelée à chaque sortie d'album
+function newEra(S, title, lines) {
+  const prev = S.era; let bonus = 0;
+  if (prev && prev.look !== S.look) { bonus = Math.round(S.fans * 0.05 * sat(S) + 500); S.fans += bonus; }
+  S.era = { name: title, look: S.look, fresh: 100, start: S.week };
+  S.eras = (S.eras || 0) + 1;
+  const m = bonus ? `Nouvelle ère « ${title} » : ta réinvention fait parler (+${fmt(bonus)} fans).` : `Début de l'ère « ${title} ».`;
+  log(S, m); return m;
+}
+function buySceno(S) { const n = SCENO[S.sceno + 1]; if (!n || palier(S.fans) < 3 || S.money < n.prix) return null; spend(S, n.prix); S.sceno++; const m = `Show amélioré : ${n.n.toLowerCase()}.`; log(S, m); return m; }
+
+// actions
+Object.assign(ACTIONS, {
+  tapis: { e: 20, cost: 0, cond: S => palier(S.fans) >= 3, run: S => {
+    const a = LOOKS[S.look].a, r = rnd(-8 - a * 4, 10 + a * 9);
+    S.buzz = clamp(S.buzz + Math.round(r), -50, 50); const g = Math.round(Math.max(0, r) * S.fans * 0.0015 * sat(S)); S.fans += g; S.active = true;
+    return r >= 15 ? `Ton look sur le tapis rouge fait la une partout : buzz +${Math.round(r)}, +${fmt(g)} fans.` : r >= 0 ? `Tapis rouge réussi : buzz +${Math.round(r)}.` : `Ton look est descendu par la presse mode : buzz ${Math.round(r)}.`;
+  } },
+  theatre: { e: 20, cost: 150, cond: S => palier(S.fans) >= 2, run: S => { const g = gain(S.acting, 12, S); S.acting = clamp(S.acting + g, 0, 100); return `Cours de théâtre : jeu d'acteur +${g.toFixed(1)}.`; } },
+  casting: { e: 25, cost: 0, cond: S => palier(S.fans) >= 3 && !S.film, run: S => {
+    const ch = 0.15 + S.acting / 160 + Math.min(0.25, S.fans / 4000000);
+    if (Math.random() < ch) {
+      const big = S.fans > 500000 && Math.random() < 0.5;
+      S.film = { t: pick(FILM_T), left: 6, big, q: Math.round(clamp(S.acting * 0.7 + rnd(0, 35), 5, 100)) };
+      return `Tu décroches un ${big ? "premier rôle" : "second rôle"} dans « ${S.film.t} ». Tournage de 6 semaines (moins d'énergie pendant ce temps).`;
+    }
+    return "Casting raté. Le réalisateur cherchait quelqu'un de plus expérimenté.";
+  } },
+  vegas: { e: 80, cost: 0, cond: S => palier(S.fans) >= 5, ready: S => S.vegasCd <= 0 && (S.markets.us || 0) >= 25, why: S => S.vegasCd > 0 ? `Disponible dans ${S.vegasCd} sem.` : "Présence aux États-Unis de 25 % requise", run: S => {
+    const r = Math.round(2500000 * showMult(S) * (0.7 + sceneEff(S) / 300)); earn(S, r); S.vegasCd = 26;
+    const g = Math.round(S.fans * 0.02 * showMult(S)); S.fans += g; S.buzz = clamp(S.buzz + 10, -50, 50); S.active = true;
+    return `Résidence à Las Vegas : ${fmt(r)} € et +${fmt(g)} fans.`;
+  } },
+  charite: { e: 35, cost: 0, cond: S => !!S.cause, run: S => {
+    S.impact = clamp(S.impact + 6, 0, 100); S.buzz = clamp(S.buzz + 6, -50, 50); S.moral = clamp(S.moral + 8, 0, 100);
+    const g = Math.round((S.fans * 0.01 + 100) * sat(S)); S.fans += g; S.active = true;
+    return `Concert caritatif pour ta cause : impact +6, +${fmt(g)} fans, moral +8.`;
+  } }
+});
+function createFoundation(S, i) {
+  if (S.cause || palier(S.fans) < 3 || S.money < 50000) return null;
+  spend(S, 50000); S.cause = CAUSES[i]; S.impact = 5; S.buzz = clamp(S.buzz + 10, -50, 50);
+  const m = `Création de ta fondation : ${CAUSES[i]}.`; log(S, m); return m;
+}
+function donate(S, amt) {
+  if (!S.cause || S.money < amt) return null; spend(S, amt);
+  const g = amt >= 1000000 ? 20 : amt >= 100000 ? 8 : 3; S.impact = clamp(S.impact + g, 0, 100);
+  const m = `Don de ${fmt(amt)} € à ta fondation : impact +${g}.`; log(S, m); return m;
+}
+
+// fin de semaine
+function starWeek(S, lines, pendRef) {
+  if (S.era) S.era.fresh = Math.max(0, S.era.fresh - 1.5);
+  if (S.vegasCd > 0) S.vegasCd--;
+  if (S.impact > 0) S.buzz = Math.max(S.buzz, Math.round(S.impact / 10));
+  // tournage
+  if (S.film) {
+    S.film.left--; S.energy = Math.max(0, S.energy - 25);
+    if (S.film.left <= 0) {
+      const f = S.film; S.film = null; S.films = (S.films || 0) + 1;
+      const g = Math.round((S.fans * 0.06 + 20000) * (f.big ? 2 : 1) * (f.q / 60) * sat(S));
+      const pay = Math.round((f.big ? 400000 : 60000) * (0.5 + S.fans / 2000000));
+      S.fans += g; earn(S, pay); S.acting = clamp(S.acting + 4, 0, 100);
+      lines.push(`Sortie du film « ${f.t} » : cachet ${fmt(pay)} €, +${fmt(g)} fans`); log(S, `Film « ${f.t} » sorti (critiques : ${f.q}/100).`);
+      if (f.q >= 70) { S.oscarNom = { t: f.t, q: f.q, big: f.big }; lines.push(`La critique adore « ${f.t} » : on parle de toi pour les Statuettes`); }
+    } else lines.push(`Tournage de « ${S.film.t} » : encore ${S.film.left} semaine${S.film.left > 1 ? "s" : ""}`);
+  }
+  const wk = S.week % 52;
+  // Statuettes (cinéma), semaine 10
+  if (wk === 10 && S.oscarNom) {
+    const n = S.oscarNom; S.oscarNom = null;
+    const cat = n.big ? (S.sexe === "f" ? "Meilleure actrice" : "Meilleur acteur") : "Meilleure chanson originale";
+    if (Math.random() < n.q / 140) { S.oscars = (S.oscars || 0) + 1; const g = Math.round(S.fans * 0.1 + 10000); S.fans += g; S.buzz = clamp(S.buzz + 30, -50, 50); S.moral = 100;
+      lines.push(`Statuettes de l'Académie : tu gagnes « ${cat} » pour « ${n.t} » ! +${fmt(g)} fans`); log(S, `Statuette gagnée : ${cat}.`); }
+    else lines.push(`Statuettes de l'Académie : nommé·e en « ${cat} », mais pas gagné`);
+  }
+  // Golden Notes (musique internationale), semaine 40
+  if (wk === 40 && palier(S.fans) >= 5) {
+    const best = Math.min(99, ...S.songs.map(s => s.best || 99));
+    if (best <= 5) {
+      if (Math.random() < (best === 1 ? 0.6 : 0.35)) { S.intlAwards = (S.intlAwards || 0) + 1; const g = Math.round(S.fans * 0.06); S.fans += g; S.buzz = clamp(S.buzz + 20, -50, 50);
+        lines.push(`Golden Notes Awards : tu repars avec un trophée ! +${fmt(g)} fans`); log(S, "Golden Notes Award gagné."); }
+      else lines.push("Golden Notes Awards : nommé·e, mais pas gagné cette fois");
+    }
+  }
+  // mi-temps du grand match américain, semaine 5
+  if (wk === 5 && palier(S.fans) >= 5 && (S.markets.us || 0) >= 30 && !S.flags["mt" + Math.floor(S.week / 52)]) {
+    S.flags["mt" + Math.floor(S.week / 52)] = true;
+    pendRef.p = pendRef.p || { t: "On t'invite à faire le show de la mi-temps du grand match de football américain. 110 millions de téléspectateurs. Pas de cachet, mais quelle vitrine.", choices: [
+      { l: "Accepter (−60 énergie)", f: S => { S.energy = Math.max(0, S.energy - 60); const ok = Math.random() < 0.4 + sceneEff(S) / 250 + S.sceno * 0.06;
+        if (ok) { const g = Math.round(S.fans * 0.15); S.fans += g; S.markets.us = clamp(S.markets.us + 25, 0, 100); S.buzz = 50; return `Show historique : +${fmt(g)} fans, présence aux États-Unis +25.`; }
+        S.buzz = clamp(S.buzz - 20, -50, 50); return "Problème de son en plein show : la presse se moque (buzz −20)."; } },
+      { l: "Décliner", f: () => "Tu passes ton tour cette année." }] };
+  }
+}
 // ===== MyStar — interface =====
 const KEY = "mystar-v1";
 let S = null, tab = "agenda", modal = null, confirmReset = false, setup = { sexe: "h", prenom: "", name: "", age: "20", genre: 0 }, writeGenre = null, albumPromo = 0;
@@ -869,10 +1002,10 @@ function render() {
     <div class="prog"><div style="width:${(prog * 100).toFixed(1)}%"></div></div>
     <p class="nexttier">${next ? `Prochain palier : ${palName(S, p + 1)} à ${fmt(next.f)} fans` : "Sommet atteint"}</p>
   </header>
-  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
+  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "star" ? viewStar() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
   <nav class="dock">
     <button class="next" data-do="week">Semaine suivante<span>+60 énergie</span></button>
-    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["star", "Star"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
   </nav>
   ${modal ? viewModal() : ""}`;
 }
@@ -1050,6 +1183,35 @@ function viewBusiness() {
   <p>${fmt(IMMO.prix)} € l'appartement, loué ${fmt(IMMO.loyer)} € par mois. Sa valeur monte d'environ 2,5 % par an.</p>
   <div class="vb"><button class="sm hl" data-inv="immo" ${S.money < IMMO.prix ? "disabled" : ""}>Acheter<small>${fmt(IMMO.prix)} €</small></button><button class="sm" data-out="immo" ${S.inv.immo.length ? "" : "disabled"}>En vendre un</button></div></div>`;
 }
+let causeSel = 0;
+function viewStar() {
+  const p = palier(S.fans), ns = SCENO[S.sceno + 1];
+  return `
+  <h2>Ta communauté</h2>
+  <div class="panel">${S.fandom ? `<p class="hint">Tes fans s'appellent <b class="fd">« ${esc(S.fandom)} »</b>. Ils te quittent deux fois moins vite quand tu es discret.</p>`
+    : p >= 2 ? `<label class="lbl" for="fandom">Donne un nom à tes fans</label><input id="fandom" maxlength="24" placeholder="Ex. les Petites Comètes" autocomplete="off"><button class="cta" data-do="fandom">Baptiser ma communauté</button>`
+    : `<p class="hint">Dès le palier ${palName(S, 2)}, tu pourras donner un nom à ta communauté de fans.</p>`}</div>
+  <h2>Look et ère</h2>
+  <div class="panel"><p class="hint">${S.era ? `Ère en cours : <b>« ${esc(S.era.name)} »</b> depuis la semaine ${S.era.start}. Fraîcheur ${Math.round(S.era.fresh)} %, elle fait varier tes écoutes de −15 % à +15 %. Chaque album ouvre une nouvelle ère ; change de look avant pour profiter d'un bonus de réinvention.` : "Ta première ère commencera avec ton premier album."}</p></div>
+  ${LOOKS.map((l, i) => `<div class="act"><div class="txt"><h3>${l.n}</h3><p>${l.d}. Audace ${l.a}/3${l.a ? ` · image +${l.a * 4} %` : ""}</p></div>${i === S.look ? `<span class="here">Porté</span>` : `<button class="go" data-look="${i}" ${S.money < l.prix ? "disabled" : ""}><span>${l.prix ? fmt(l.prix) + " €" : "Gratuit"}</span></button>`}</div>`).join("")}
+  ${card("tapis", "Tapis rouge", "Plus ton look est audacieux, plus ça peut faire la une… ou être descendu.")}
+  <h2>Show</h2>
+  <div class="act"><div class="txt"><h3>${SCENO[S.sceno].n}</h3><p>Concerts payants et tournées : +${S.sceno * 15} % de recettes et de nouveaux fans.${ns ? ` Prochain : ${ns.n.toLowerCase()}.` : ""}${p < 3 ? ` Dès ${palName(S, 3)}.` : ""}</p></div>
+  ${ns && p >= 3 ? `<button class="go" data-do="sceno" ${S.money < ns.prix ? "disabled" : ""}><span>${fmt(ns.prix)} €</span></button>` : ""}</div>
+  ${card("vegas", "Résidence à Las Vegas", "Plusieurs semaines de shows au même endroit. Énorme cachet, une fois tous les 6 mois.")}
+  <h2>Cinéma</h2>
+  <div class="panel">${bar("Jeu", S.acting)}<p class="hint">${S.film ? `Tournage de « ${esc(S.film.t)} » : encore ${S.film.left} semaine${S.film.left > 1 ? "s" : ""} (−25 énergie par semaine).` : `${S.films} film${S.films > 1 ? "s" : ""} tourné${S.films > 1 ? "s" : ""}. Un film bien reçu peut te valoir une nomination aux Statuettes de l'Académie (semaine 10).`}</p></div>
+  ${card("theatre", "Cours de théâtre", "Améliore ton jeu d'acteur.")}
+  ${card("casting", "Passer un casting", "Ton jeu et ta célébrité comptent.")}
+  <h2>Engagement</h2>
+  ${S.cause ? `<div class="panel"><p class="hint">Ta fondation : <b>${esc(S.cause)}</b>. Plus ton impact est grand, plus tes fans te restent fidèles et plus ton image résiste aux scandales.</p>${bar("Impact", S.impact)}
+    <div class="vb">${[10000, 100000, 1000000].map(a => `<button class="sm" data-don="${a}" ${S.money < a ? "disabled" : ""}>Donner ${fmt(a)} €</button>`).join("")}</div></div>
+    ${card("charite", "Concert caritatif", "Pas de recette, mais impact, image et moral en hausse.")}`
+  : p >= 3 ? `<div class="panel"><p class="hint">Crée ta fondation pour une cause qui te tient à cœur (50 000 €).</p><div class="chips">${CAUSES.map((c, i) => `<button class="chip ${i === causeSel ? "sel" : ""}" data-cause="${i}">${c}</button>`).join("")}</div><button class="cta" data-do="found" ${S.money < 50000 ? "disabled" : ""}>Créer ma fondation</button></div>`
+  : `<p class="hint">Dès le palier ${palName(S, 3)}, tu pourras créer ta fondation.</p>`}
+  <h2>Trophées</h2>
+  <div class="panel kv"><div><span>Notes d'Or (Belgique)</span><b>${S.awardsWon || 0}</b></div><div><span>Golden Notes Awards</span><b>${S.intlAwards || 0}</b></div><div><span>Statuettes de l'Académie</span><b>${S.oscars || 0}</b></div><div><span>Ères</span><b>${S.eras || 0}</b></div></div>`;
+}
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
   const p = palier(S.fans);
@@ -1127,6 +1289,9 @@ document.addEventListener("click", e => {
   if (d.clip) return after(shootClip(S, +d.clip, d.c));
   if (d.featfor) { modal = { type: "feat", id: +d.featfor }; return render(); }
   if (d.feat !== undefined) { const m = askFeat(S, modal.id, +d.feat); const s = S.songs.find(x => x.id === modal.id); if (s && s.feat) modal = null; return after(m); }
+  if (d.look !== undefined) return after(setLook(S, +d.look));
+  if (d.cause !== undefined) { causeSel = +d.cause; return render(); }
+  if (d.don) return after(donate(S, +d.don));
   if (d.promo2) return after(promoAbroad(S, d.promo2));
   if (d.tour2) return after(tourAbroad(S, d.tour2));
   if (d.merch !== undefined) return after(buyMerch(S, +d.merch));
@@ -1141,6 +1306,9 @@ document.addEventListener("click", e => {
   if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; const m = c.f(S); log(S, m); S.pending = null; modal = null; return after(m); }
   switch (d.do) {
     case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
+    case "fandom": return after(setFandom(S, $("#fandom").value));
+    case "sceno": return after(buySceno(S));
+    case "found": return after(createFoundation(S, causeSel));
     case "closefeat": modal = null; return render();
     case "close": modal = S.pending ? { type: "ev", ev: S.pending } : null; save(); return render();
     case "write": { const g = writeGenre === null ? S.genre : GENRES[writeGenre]; return after(writeSong(S, $("#stitle").value, g)); }
