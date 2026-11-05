@@ -130,6 +130,21 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .frow small { font-size: 12px; color: var(--muted); font-family: var(--mono); }
 .frow em { font-style: normal; font-size: 12px; color: var(--amber); white-space: nowrap; }
 .fd { color: var(--amber); }
+.quest { margin-top: 12px; padding: 14px; border-radius: 14px; border: 1.5px dashed var(--amber); display: flex; flex-direction: column; gap: 4px; }
+.quest h3 { font-family: var(--display); font-size: 19px; font-weight: 600; }
+.quest p:last-child { margin: 0; font-size: 13px; color: var(--muted); }
+.gig { align-items: center; text-align: center; }
+.gstage { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.tap { position: relative; width: 210px; height: 210px; max-width: 70vw; max-height: 70vw; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--rose) 30%, var(--surface)) 0%, var(--surface) 70%); display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tap .core { position: absolute; width: 46%; height: 46%; border-radius: 50%; border: 3px solid var(--amber); }
+.tap .ring { position: absolute; width: 46%; height: 46%; border-radius: 50%; border: 3px solid var(--rose); opacity: 0; will-change: transform; }
+.tap b { position: relative; font-family: var(--mono); font-size: 14px; color: var(--muted); }
+.tap.hit .core { animation: pop .18s ease-out; }
+@keyframes pop { from { transform: scale(1.18); background: color-mix(in srgb, var(--amber) 40%, transparent); } to { transform: none; } }
+.gjudge { margin: 0; min-height: 1.4em; font-family: var(--display); font-weight: 800; font-size: 22px; }
+.gjudge.perfect { color: var(--amber); } .gjudge.ok { color: var(--good); } .gjudge.miss { color: var(--bad); }
+#gres { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+#gres:empty { display: none; }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -365,22 +380,23 @@ function buyHome(S) {
 
 // ----- Concerts -----
 function venueOk(S, v) { return S.fans >= v.min; }
-function concert(S, vid, dates) {
+function concert(S, vid, dates, perf) {
+  perf = perf || 1;
   const v = VENUES.find(x => x.id === vid); dates = dates || 1;
   const e = gigE(S, dates > 1 ? 70 : v.e); const sc = sceneEff(S);
   if (!venueOk(S, v) || S.energy < e) return null;
   if (v.cout && S.money < v.cout * dates) return null;
-  S.energy -= e; S.active = true;
+  S.energy -= e; S.active = true; S.gigs = (S.gigs || 0) + 1; if (vid === "bar") S.flags.bar = true;
   let aud = 0, fg = 0, net = 0;
   for (let i = 0; i < dates; i++) {
     let a, f, r = 0;
     if (v.type === "ticket") {
       a = Math.round(Math.min(v.cap, S.fans * 0.06 * (0.6 + sc / 100) * rnd(0.85, 1.1)));
-      f = a * (0.15 + sc / 300); r = a * v.prix * showMult(S) * (has(S, "manager") ? 1.2 : 1) - v.cout;
-      f *= showMult(S);
+      f = a * (0.15 + sc / 300); r = a * v.prix * showMult(S) * perf * (has(S, "manager") ? 1.2 : 1) - v.cout;
+      f *= showMult(S) * perf;
     } else {
       a = Math.round(v.cap * rnd(0.6, 1));
-      f = a * (S.voix + sc) / 200 * (v.type === "fest" ? 0.25 : 1.5);
+      f = a * (S.voix + sc) / 200 * (v.type === "fest" ? 0.25 : 1.5) * perf;
       r = (v.cachet || 0) * (has(S, "manager") ? 1.2 : 1);
     }
     aud += a; fg += f; net += r; S.gigAud += a;
@@ -390,7 +406,8 @@ function concert(S, vid, dates) {
   if (net >= 0) earn(S, net); else spend(S, -net);
   const sg = gain(S.scene, 25, S) * Math.min(dates, 2); S.scene = clamp(S.scene + sg, 0, 100);
   const what = dates > 1 ? `Tournée de ${dates} dates (${v.n})` : v.n;
-  const m = `${what} : ${fmt(aud)} spectateurs, +${fmt(fg)} fans, ${net >= 0 ? "+" : "−"}${fmt(Math.abs(net))} €.`;
+  const pl = perf >= 1.2 ? "Show parfait. " : perf < 0.85 ? "Show raté. " : "";
+  const m = `${pl}${what} : ${fmt(aud)} spectateurs, +${fmt(fg)} fans, ${net >= 0 ? "+" : "−"}${fmt(Math.abs(net))} €.`;
   log(S, m); return m;
 }
 
@@ -692,13 +709,14 @@ function promoAbroad(S, id) {
   const fg = Math.round((S.fans * 0.015 + 3000) * m.w * buzzMult(S) * sat(S)); S.fans += fg;
   const msg = `Tournée promo (${m.n}) : présence ${Math.round(S.markets[id])} %, +${fmt(fg)} fans.`; log(S, msg); return msg;
 }
-function tourAbroad(S, id) {
+function tourAbroad(S, id, perf) {
+  perf = perf || 1;
   const m = MK.find(x => x.id === id), pr = S.markets[id] || 0;
   if (!m || pr < 40 || S.energy < gigE(S, 70)) return null;
   const cost = Math.round(m.tour * 0.35); if (S.money < cost) return null;
   S.energy -= gigE(S, 70); S.active = true;
-  const rev = Math.round(m.tour * pr / 100 * (0.6 + sceneEff(S) / 150) * showMult(S) * (has(S, "manager") ? 1.2 : 1));
-  const fg = Math.round((6000 + S.fans * 0.01) * m.w * pr / 100 * (has(S, "chorus") ? 1.25 : 1) * sat(S));
+  const rev = Math.round(m.tour * pr / 100 * (0.6 + sceneEff(S) / 150) * showMult(S) * perf * (has(S, "manager") ? 1.2 : 1));
+  const fg = Math.round((6000 + S.fans * 0.01) * m.w * pr / 100 * (has(S, "chorus") ? 1.25 : 1) * sat(S) * perf);
   spend(S, cost); earn(S, rev); S.fans += fg; S.gigAud += Math.round(rev / 50); S.markets[id] = clamp(pr + 4, 0, 100);
   S.moral = clamp(S.moral + 6, 0, 100);
   const msg = `Tournée (${m.n}) : recettes ${fmt(rev)} €, frais ${fmt(cost)} €, +${fmt(fg)} fans.`; log(S, msg); return msg;
@@ -931,6 +949,44 @@ function starWeek(S, lines, pendRef) {
       { l: "Décliner", f: () => "Tu passes ton tour cette année." }] };
   }
 }
+// ===== MyStar — guide de départ et déblocage des onglets =====
+const QUESTS = [
+  { t: "Poste ta première vidéo", h: "Agenda → Poster une vidéo", ok: S => S.fans > 0, r: 50 },
+  { t: "Écris ta première chanson", h: "Studio → Écrire une chanson", ok: S => S.songs.length > 0, r: 50 },
+  { t: "Enregistre-la", h: "Studio → À la maison, c'est gratuit", ok: S => S.songs.some(s => s.note !== null), r: 50 },
+  { t: "Sors-la en single", h: "Studio → Sortir en single", ok: S => S.songs.some(s => s.rel), r: 80 },
+  { t: "Monte sur scène", h: "Scène → Scène ouverte", ok: S => S.gigs > 0, r: 80 },
+  { t: "Passe à la semaine suivante", h: "Gros bouton rose en bas. L'énergie revient chaque semaine", ok: S => S.week > 1, r: 50 },
+  { t: "Atteins 150 fans", h: "Vidéos et scènes ouvertes. Prends des cours de chant pour aller plus vite", ok: S => S.fans >= 150, r: 150 },
+  { t: "Joue dans un bar musical", h: "Scène → Bar musical, il y a un cachet", ok: S => S.gigs > 1 && S.fans >= 150 && S.flags.bar, r: 100 },
+  { t: "Sors 3 singles", h: "Écris, enregistre, sors. Une meilleure écriture fait de meilleures chansons", ok: S => S.songs.filter(s => s.rel).length >= 3, r: 200 },
+  { t: "Atteins 1 000 fans", h: "Les onglets Réseaux et Vie sont maintenant ouverts", ok: S => S.fans >= 1000, r: 300 },
+  { t: "Tourne un clip", h: "Studio → sur une chanson déjà sortie", ok: S => S.songs.some(s => s.clip), r: 200 },
+  { t: "Engage ton premier membre d'équipe", h: "Vie → Équipe", ok: S => Object.keys(S.team).length > 0, r: 300 },
+  { t: "Sors ton premier album", h: "Studio → il faut 8 chansons enregistrées", ok: S => S.albums > 0, r: 1000 },
+  { t: "Entre dans le Top 50", h: "Il faut environ 3 000 écoutes en une semaine", ok: S => S.songs.some(s => s.best), r: 1000 },
+  { t: "Deviens une Révélation (10 000 fans)", h: "Après ça, tu voles de tes propres ailes", ok: S => S.fans >= 10000, r: 3000 }
+];
+const TAB_UNLOCK = {
+  agenda: S => true, studio: S => true, scene: S => true,
+  top: S => S.songs.some(s => s.rel),
+  reseaux: S => palier(S.fans) >= 1, vie: S => palier(S.fans) >= 1,
+  business: S => palier(S.fans) >= 1, star: S => palier(S.fans) >= 2,
+  monde: S => palier(S.fans) >= 3, carriere: S => true
+};
+const TAB_NAMES = { top: "Top 50", reseaux: "Réseaux", vie: "Vie", business: "Business", star: "Star", monde: "Monde" };
+// renvoie les messages à afficher (quête validée, onglet ouvert)
+function checkGuide(S) {
+  const out = [];
+  if (S.quest === undefined) S.quest = 0;
+  while (S.quest < QUESTS.length && QUESTS[S.quest].ok(S)) {
+    const q = QUESTS[S.quest]; earn(S, q.r); S.quest++;
+    out.push(`Objectif réussi : ${q.t} (+${fmt(q.r)} €)`); log(S, `Objectif réussi : ${q.t}.`);
+  }
+  S.tabsOpen = S.tabsOpen || {};
+  Object.keys(TAB_NAMES).forEach(k => { if (!S.tabsOpen[k] && TAB_UNLOCK[k](S)) { S.tabsOpen[k] = true; out.push(`Nouvel onglet ouvert : ${TAB_NAMES[k]}`); } });
+  return out;
+}
 // ===== MyStar — interface =====
 const KEY = "mystar-v1";
 let S = null, tab = "agenda", modal = null, confirmReset = false, setup = { sexe: "h", prenom: "", name: "", age: "20", genre: 0 }, writeGenre = null, albumPromo = 0;
@@ -1005,7 +1061,7 @@ function render() {
   <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "star" ? viewStar() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
   <nav class="dock">
     <button class="next" data-do="week">Semaine suivante<span>+60 énergie</span></button>
-    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["star", "Star"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["star", "Star"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].filter(([k]) => TAB_UNLOCK[k](S) || tab === k).map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
   </nav>
   ${modal ? viewModal() : ""}`;
 }
@@ -1016,8 +1072,13 @@ function card(id, title, desc) {
   return `<div class="act"><div class="txt"><h3>${title}</h3><p>${desc}</p></div>
   <button class="go" data-act="${id}" ${why ? "disabled" : ""}><span>${a.e} én.${a.cost ? ` · ${fmt(a.cost)} €` : ""}</span>${why ? `<em>${why}</em>` : ""}</button></div>`;
 }
+function questCard() {
+  if (S.quest === undefined || S.quest >= QUESTS.length) return "";
+  const q = QUESTS[S.quest];
+  return `<div class="quest"><p class="eyebrow">Objectif ${S.quest + 1}/${QUESTS.length} · récompense ${fmt(q.r)} €</p><h3>${q.t}</h3><p>${q.h}</p></div>`;
+}
 function viewAgenda() {
-  return `
+  return `${questCard()}
   <h2>Gagner sa vie</h2>
   ${card("job", "Petit job au resto", "Une semaine de service : +150 €. Disparaît quand tu deviens une Révélation.")}
   ${card("dedicaces", "Dédicaces et merch", "Tu signes des pochettes et vends des t-shirts.")}
@@ -1212,6 +1273,63 @@ function viewStar() {
   <h2>Trophées</h2>
   <div class="panel kv"><div><span>Notes d'Or (Belgique)</span><b>${S.awardsWon || 0}</b></div><div><span>Golden Notes Awards</span><b>${S.intlAwards || 0}</b></div><div><span>Statuettes de l'Académie</span><b>${S.oscars || 0}</b></div><div><span>Ères</span><b>${S.eras || 0}</b></div></div>`;
 }
+// ----- Mini-jeu de concert -----
+const BEATS = 10, GAP = 950, LEAD = 1300;
+let GIG = null;
+function startGig(o) {
+  GIG = Object.assign(o, { t0: 0, hits: [], judged: 0, perf: 1, done: false, raf: 0 });
+  modal = { type: "gig" }; render();
+  GIG.t0 = performance.now() + 900;
+  GIG.raf = requestAnimationFrame(gigLoop);
+}
+function beatTime(i) { return GIG.t0 + LEAD + i * GAP; }
+function gigLoop(now) {
+  if (!GIG || GIG.done) return;
+  const ring = $("#ring"), lbl = $("#gcount");
+  // prochaine note pas encore jugée
+  while (GIG.judged < BEATS && now > beatTime(GIG.judged) + 260) { GIG.hits[GIG.judged] = 0; GIG.judged++; flash("Raté", "miss"); }
+  if (GIG.judged >= BEATS) return finishGig();
+  const dt = beatTime(GIG.judged) - now; // ms avant la note
+  const s = clamp(1 + dt / 700, 0.75, 3);
+  if (ring) { ring.style.transform = `scale(${s.toFixed(3)})`; ring.style.opacity = dt > LEAD ? 0 : 1; }
+  if (lbl) lbl.textContent = now < GIG.t0 + LEAD - GAP ? "Prêt ?" : `${GIG.judged + 1} / ${BEATS}`;
+  GIG.raf = requestAnimationFrame(gigLoop);
+}
+function flash(t, cls) { const f = $("#gjudge"); if (!f) return; f.textContent = t; f.className = "gjudge " + cls; }
+function gigTap() {
+  if (!GIG || GIG.done || GIG.judged >= BEATS) return;
+  const now = performance.now(), d = Math.abs(now - beatTime(GIG.judged));
+  if (d > 260) { flash("Trop tôt", "miss"); return; }
+  const sc = d < 70 ? 1 : d < 150 ? 0.7 : 0.35;
+  GIG.hits[GIG.judged] = sc; GIG.judged++;
+  flash(sc === 1 ? "Parfait !" : sc > 0.5 ? "Bien" : "Juste", sc === 1 ? "perfect" : "ok");
+  const pad = $("#tap"); if (pad) { pad.classList.remove("hit"); void pad.offsetWidth; pad.classList.add("hit"); }
+  if (GIG.judged >= BEATS) finishGig();
+}
+function finishGig() {
+  GIG.done = true; cancelAnimationFrame(GIG.raf);
+  const acc = GIG.hits.reduce((a, x) => a + (x || 0), 0) / BEATS;
+  GIG.perf = Math.round((0.7 + acc * 0.65) * 100) / 100;
+  const box = $("#gres");
+  if (box) box.innerHTML = `<p class="eyebrow">Précision ${Math.round(acc * 100)} %</p><h2 class="mh">${acc >= 0.8 ? "Le public est en délire" : acc >= 0.5 ? "Bon concert" : "Soirée difficile"}</h2>
+    <p class="hint">Recettes et nouveaux fans ×${GIG.perf.toFixed(2).replace(".", ",")}</p><button class="cta" data-gigdone="1">Saluer le public</button>`;
+  const st = $("#gstage"); if (st) st.hidden = true;
+}
+function endGig(perf) {
+  if (!GIG) return; cancelAnimationFrame(GIG.raf);
+  const g = GIG; GIG = null; modal = null;
+  const m = g.kind === "abroad" ? tourAbroad(S, g.id, perf) : concert(S, g.id, g.dates, perf);
+  after(m);
+}
+function viewGig() {
+  const v = GIG.kind === "abroad" ? MK.find(x => x.id === GIG.id).n : VENUES.find(x => x.id === GIG.id).n;
+  return `<div class="veil"><div class="sheet gig"><p class="eyebrow">${GIG.kind === "abroad" ? "Tournée · " : GIG.dates > 1 ? "Tournée de 4 dates · " : ""}${esc(v)}</p>
+  <div id="gstage" class="gstage"><p class="hint">Tape au moment où l'anneau touche le cercle. ${BEATS} notes.</p>
+    <button id="tap" class="tap" aria-label="Taper en rythme"><span id="ring" class="ring"></span><span class="core"></span><b id="gcount">Prêt ?</b></button>
+    <p id="gjudge" class="gjudge">&nbsp;</p>
+    <button class="sm" data-gigskip="1">Passer le mini-jeu (résultat moyen)</button></div>
+  <div id="gres"></div></div></div>`;
+}
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
   const p = palier(S.fans);
@@ -1240,6 +1358,7 @@ function viewCarriere() {
   <div class="reset">${confirmReset ? `<p>Effacer cette carrière et recommencer à zéro ?</p><button class="sm danger" data-do="reset2">Oui, tout effacer</button><button class="sm" data-do="reset0">Annuler</button>` : `<button class="sm" data-do="reset1">Recommencer une carrière</button>`}</div>`;
 }
 function viewModal() {
+  if (modal.type === "gig") return viewGig();
   if (modal.type === "feat") {
     const s = S.songs.find(x => x.id === modal.id);
     return `<div class="veil"><div class="sheet"><p class="eyebrow">Featuring · 10 énergie par demande</p><h2 class="mh sm2">« ${esc(s.title)} »</h2>
@@ -1261,12 +1380,14 @@ function viewModal() {
 }
 
 // ----- Événements de l'interface -----
-function after(m) { if (m) toast(m); save(); render(); }
+function after(m) { const g = S ? checkGuide(S) : []; const all = [m, ...g].filter(Boolean); if (all.length) toast(all.join(" · ")); save(); render(); }
 document.addEventListener("input", e => {
   const f = e.target.dataset && e.target.dataset.f; if (!f || S) return;
   setup[f] = e.target.value;
   if (f === "age") { const h = document.querySelector(".setup .hint"); if (h) h.textContent = ageHint(); }
 });
+document.addEventListener("keydown", e => { if (GIG && !GIG.done && (e.key === " " || e.key === "Enter")) { e.preventDefault(); gigTap(); } });
+document.addEventListener("pointerdown", e => { if (e.target.closest("#tap")) { e.preventDefault(); gigTap(); } });
 document.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || b.disabled) return;
   const d = b.dataset;
@@ -1285,7 +1406,7 @@ document.addEventListener("click", e => {
   if (d.promo !== undefined) { const t = $("#atitle").value; albumPromo = +d.promo; render(); $("#atitle").value = t; return; }
   if (d.rec) return after(recordSong(S, +d.rec, d.st));
   if (d.rel) return after(releaseSong(S, +d.rel));
-  if (d.gig) return after(concert(S, d.gig, 1));
+  if (d.gig) return startGig({ kind: "gig", id: d.gig, dates: 1 });
   if (d.clip) return after(shootClip(S, +d.clip, d.c));
   if (d.featfor) { modal = { type: "feat", id: +d.featfor }; return render(); }
   if (d.feat !== undefined) { const m = askFeat(S, modal.id, +d.feat); const s = S.songs.find(x => x.id === modal.id); if (s && s.feat) modal = null; return after(m); }
@@ -1293,7 +1414,7 @@ document.addEventListener("click", e => {
   if (d.cause !== undefined) { causeSel = +d.cause; return render(); }
   if (d.don) return after(donate(S, +d.don));
   if (d.promo2) return after(promoAbroad(S, d.promo2));
-  if (d.tour2) return after(tourAbroad(S, d.tour2));
+  if (d.tour2) return startGig({ kind: "abroad", id: d.tour2 });
   if (d.merch !== undefined) return after(buyMerch(S, +d.merch));
   if (d.brand) return after(launchBrand(S, d.brand));
   if (d.inv) return after(invest(S, d.inv, +d.amt || 0));
@@ -1302,7 +1423,10 @@ document.addEventListener("click", e => {
   if (d.car !== undefined) return after(buyCar(S, +d.car));
   if (d.hire) return after(hire(S, d.hire));
   if (d.fire) return after(fire(S, d.fire));
-  if (d.tour) return after(concert(S, d.tour, 4));
+  if (d.tour) return startGig({ kind: "gig", id: d.tour, dates: 4 });
+  if (b.id === "tap") return;
+  if (d.gigskip) return endGig(1);
+  if (d.gigdone) return endGig(GIG.perf);
   if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; const m = c.f(S); log(S, m); S.pending = null; modal = null; return after(m); }
   switch (d.do) {
     case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
