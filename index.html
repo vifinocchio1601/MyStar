@@ -147,6 +147,20 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 #gres:empty { display: none; }
 .frow.on { background: color-mix(in srgb, var(--amber) 22%, var(--surface)); }
 .frow.on em { color: var(--good); }
+.cities { display: flex; flex-direction: column; gap: 8px; }
+.city { padding: 10px; border-radius: 10px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+.city.on { outline: 1.5px solid var(--amber); }
+.ch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch small { color: var(--muted); font-size: 12px; }
+.cv { display: flex; flex-wrap: wrap; gap: 6px; }
+.vch { padding: 6px 10px; border-radius: 8px; background: var(--raise); font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: flex-start; }
+.vch small { font-size: 11px; color: var(--muted); font-weight: 500; }
+.vch.sel { background: var(--amber); color: var(--amber-ink); } .vch.sel small { color: var(--amber-ink); }
+.tn { font-family: var(--display); font-size: 18px; font-weight: 600; }
+.dates { list-style: none; margin: 0; padding: 0; }
+.dates li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+.dates small { color: var(--muted); font-size: 12px; } .dates b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--muted); }
+.dates li.done span { color: var(--muted); text-decoration: line-through; } .dates li.done b { color: var(--good); }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -246,7 +260,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 6, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 7, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
@@ -256,7 +270,7 @@ function newState(o) {
     moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0,
     markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0,
     fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0,
-    mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0
+    mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0, tour: null, tours: 0, bestTour: 0
   };
 }
 
@@ -274,7 +288,8 @@ function migrate(S) {
   if (S && S.v === 3) Object.assign(S, { v: 4, markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0 });
   if (S && S.v === 4) Object.assign(S, { v: 5, fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0 });
   if (S && S.v === 5) Object.assign(S, { v: 6, mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0 });
-  return S && S.v === 6 ? S : null;
+  if (S && S.v === 6) Object.assign(S, { v: 7, tour: null, tours: 0, bestTour: 0 });
+  return S && S.v === 7 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -462,7 +477,7 @@ function endWeek(S) {
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
   bizWeek(S, lines);
-  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr);
+  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr); tourWeek(S, lines);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -1103,6 +1118,83 @@ function tvWeek(S, lines, pr) {
     S.tv = null; S.tvCd = 16;
   }
 }
+// ===== MyStar — organisation des tournées =====
+const TERR = [
+  { id: "be", n: "Belgique", cities: [["Bruxelles", 1.3], ["Anvers", 1.1], ["Liège", 1], ["Gand", 0.9], ["Charleroi", 0.7], ["Namur", 0.6], ["Louvain", 0.6], ["Mons", 0.5]] },
+  { id: "fr", n: "France", cities: [["Paris", 3], ["Lyon", 1.3], ["Marseille", 1.3], ["Lille", 1.1], ["Bordeaux", 1], ["Toulouse", 1], ["Nantes", 0.9], ["Strasbourg", 0.8]] },
+  { id: "qc", n: "Québec", cities: [["Montréal", 2], ["Québec", 1.1], ["Gatineau", 0.6], ["Sherbrooke", 0.5]] },
+  { id: "eu", n: "Reste de l'Europe", cities: [["Londres", 2.5], ["Berlin", 1.8], ["Amsterdam", 1.3], ["Madrid", 1.5], ["Rome", 1.4], ["Zurich", 0.9], ["Vienne", 1], ["Stockholm", 0.9]] },
+  { id: "us", n: "États-Unis", cities: [["New York", 3], ["Los Angeles", 2.8], ["Chicago", 1.6], ["Miami", 1.3], ["Las Vegas", 1.1], ["Austin", 1], ["Seattle", 1], ["Nashville", 0.9]] }
+];
+const TVEN = VENUES.filter(v => v.type === "ticket");
+const TPRICE = [{ n: "Prix doux", m: 0.8, d: 1.2 }, { n: "Prix normal", m: 1, d: 1 }, { n: "Prix fort", m: 1.35, d: 0.72 }];
+const TRANS = [
+  { id: "van", n: "Van", d: "Pas cher, mais épuisant", wk: 800, e: 15, moral: -3, far: false },
+  { id: "bus", n: "Tourbus avec couchettes", d: "Le confort sur la route", wk: 6000, e: 0, moral: 0, far: false },
+  { id: "plane", n: "Avions de ligne", d: "Obligatoire pour l'outre-Atlantique", wk: 15000, e: 10, moral: -2, far: true },
+  { id: "jet", n: "Jet privé", d: "Aucune fatigue, moral au top", wk: 80000, e: 0, moral: 3, far: true }
+];
+function terrOpen(S, t) { return t.id === "be" ? true : (S.markets[t.id] || 0) >= 20; }
+function terrAudience(S, t) { return t.id === "be" ? S.fans : S.fans * (MK.find(m => m.id === t.id).w) * (S.markets[t.id] || 0) / 100; }
+function transOk(t, tr) { return (t.id === "qc" || t.id === "us") ? tr.far : true; }
+function crewCost(S) { return 2000 * (1 + S.sceno); }
+function dateForecast(S, t, d, pi) {
+  const v = TVEN.find(x => x.id === d.v), c = t.cities.find(x => x[0] === d.city), pr = TPRICE[pi];
+  const demand = terrAudience(S, t) * c[1] * 0.045 * pr.d * (0.6 + sceneEff(S) / 100) * buzzMult(S) * showMult(S);
+  const sold = Math.round(Math.min(v.cap, demand));
+  const price = Math.round(v.prix * pr.m);
+  return { sold, cap: v.cap, price, gross: sold * price, cost: v.cout + crewCost(S) };
+}
+function planTotals(S, plan) {
+  const t = TERR.find(x => x.id === plan.terr), tr = TRANS.find(x => x.id === plan.trans);
+  const rows = plan.dates.map(d => dateForecast(S, t, d, plan.price));
+  const weeks = Math.ceil(plan.dates.length / 2);
+  const gross = rows.reduce((a, r) => a + r.gross, 0), cost = rows.reduce((a, r) => a + r.cost, 0) + weeks * tr.wk;
+  const upfront = plan.dates.reduce((a, d) => a + TVEN.find(v => v.id === d.v).cout, 0);
+  return { rows, weeks, gross, cost, net: gross - cost, upfront, sold: rows.reduce((a, r) => a + r.sold, 0) };
+}
+// lance la tournée (la location des salles est payée d'avance)
+function launchTour(S, plan, perf) {
+  if (S.tour || !plan.dates.length) return null;
+  const t = TERR.find(x => x.id === plan.terr), tr = TRANS.find(x => x.id === plan.trans);
+  if (!terrOpen(S, t) || !transOk(t, tr)) return null;
+  const tot = planTotals(S, plan); if (S.money < tot.upfront) return null;
+  spend(S, tot.upfront);
+  S.tour = { terr: plan.terr, trans: plan.trans, price: plan.price, dates: plan.dates.map(d => ({ city: d.city, v: d.v, done: false })), perf: perf || 1, aud: 0, net: -tot.upfront, fans: 0, start: S.week, name: (plan.name || "").trim() || `Tournée n° ${(S.tours || 0) + 1} · ${t.n}` };
+  S.active = true;
+  const m = `Lancement de « ${S.tour.name} » : ${plan.dates.length} dates en ${tot.weeks} semaine${tot.weeks > 1 ? "s" : ""}. Location des salles payée : ${fmt(tot.upfront)} €.`;
+  log(S, m); return m;
+}
+function cancelTour(S) {
+  if (!S.tour) return null; const left = S.tour.dates.filter(d => !d.done).length;
+  S.tour = null; S.buzz = clamp(S.buzz - 10, -50, 50); S.moral = clamp(S.moral - 5, 0, 100);
+  const m = `Tournée annulée (${left} dates). Les fans sont déçus : buzz −10.`; log(S, m); return m;
+}
+// deux dates par semaine
+function tourWeek(S, lines) {
+  const T = S.tour; if (!T) return;
+  const t = TERR.find(x => x.id === T.terr), tr = TRANS.find(x => x.id === T.trans);
+  spend(S, tr.wk); T.net -= tr.wk;
+  S.energy = Math.max(0, S.energy - tr.e); S.moral = clamp(S.moral + tr.moral + 2, 0, 100); S.active = true;
+  const todo = T.dates.filter(d => !d.done).slice(0, 2);
+  todo.forEach(d => {
+    const f = dateForecast(S, t, d, T.price), v = TVEN.find(x => x.id === d.v);
+    const sold = Math.min(v.cap, Math.round(f.sold * rnd(0.9, 1.05) * (0.85 + T.perf * 0.15)));
+    const gross = Math.round(sold * f.price * T.perf * (has(S, "manager") ? 1.1 : 1));
+    const crew = crewCost(S), merchN = Math.min(S.merch, Math.round(sold * 0.08)); S.merch -= merchN;
+    const net = gross - crew + merchN * 25; earn(S, gross + merchN * 25); spend(S, crew);
+    const fg = Math.round(sold * (0.15 + sceneEff(S) / 300) * T.perf * (has(S, "chorus") ? 1.25 : 1) * img(S) * sat(S));
+    S.fans += fg; S.gigAud += sold; S.gigs = (S.gigs || 0) + 1;
+    T.aud += sold; T.net += net; T.fans += fg; d.done = true; d.sold = sold;
+    if (t.id !== "be") S.markets[t.id] = clamp((S.markets[t.id] || 0) + 2, 0, 100);
+    lines.push(`${d.city} (${v.n.toLowerCase()}) : ${fmt(sold)}/${fmt(v.cap)} places, ${net >= 0 ? "+" : "−"}${fmt(Math.abs(net))} €, +${fmt(fg)} fans`);
+  });
+  S.scene = clamp(S.scene + gain(S.scene, 30, S), 0, 100);
+  if (T.dates.every(d => d.done)) {
+    const m = `Fin de « ${T.name} » : ${fmt(T.aud)} spectateurs, résultat ${T.net >= 0 ? "+" : "−"}${fmt(Math.abs(T.net))} €, +${fmt(T.fans)} fans.`;
+    lines.push(m); log(S, m); S.tours = (S.tours || 0) + 1; S.bestTour = Math.max(S.bestTour || 0, T.aud); S.tour = null;
+  }
+}
 // ===== MyStar — guide de départ et déblocage des onglets =====
 const QUESTS = [
   { t: "Poste ta première vidéo", h: "Agenda → Poster une vidéo", ok: S => S.fans > 0, r: 50 },
@@ -1296,12 +1388,13 @@ function viewStudio() {
 }
 function viewScene() {
   const p = palier(S.fans);
-  return `<p class="hint top">Chaque concert fait progresser ta présence sur scène. Les salles payantes se remplissent selon tes fans et ton niveau de scène, et la location se paie d'avance.</p>
+  return `${viewTour()}
+  <h2>Concerts uniques</h2><p class="hint top">Chaque concert fait progresser ta présence sur scène. Les salles payantes se remplissent selon tes fans et ton niveau de scène, et la location se paie d'avance.</p>
   ${VENUES.map(v => {
     const ok = venueOk(S, v);
     const money = v.type === "ticket" ? `Location ${fmt(v.cout)} €` : v.cachet ? `Cachet ${fmt(v.cachet)} €` : "Pas payé";
     const can = ok && S.energy >= v.e && (!v.cout || S.money >= v.cout);
-    const tour = ok && p >= 3 && v.type === "ticket" && v.min >= 6000;
+    const tour = false;
     const canTour = tour && S.energy >= 70 && S.money >= v.cout * 4;
     return `<div class="venue ${ok ? "" : "lock"}"><div class="vh"><h3>${v.n}</h3><span class="cap">${fmt(v.cap)} pl.</span></div>
     <p>${v.d}</p>
@@ -1374,7 +1467,7 @@ function viewMonde() {
     return `<div class="venue ${ok ? "" : "lock"}"><div class="vh"><h3>${m.n}</h3><span class="cap">poids ×${m.w}</span></div><p>${m.d}</p>
     ${ok ? `<div class="sbar big"><div style="width:${pr}%"></div></div><p>Présence : ${Math.round(pr)} %</p>
     <div class="vb"><button class="sm hl" data-promo2="${m.id}" ${S.energy < 40 || S.money < m.cost ? "disabled" : ""}>Tournée promo<small>40 én. · ${fmt(m.cost)} €</small></button>
-    <button class="sm" data-tour2="${m.id}" ${pr < 40 || S.energy < gigE(S, 70) || S.money < tc ? "disabled" : ""}>Tournée de concerts<small>${pr < 40 ? "dès 40 % de présence" : `${gigE(S, 70)} én. · frais ${fmt(tc)} €`}</small></button></div>`
+</div><p class="hint">${pr >= 20 ? "Tu peux organiser une tournée ici depuis l'onglet Scène." : "Tournées possibles dès 20 % de présence."}</p>`
       : `<p class="req">Dès le palier ${palName(S, m.min)}</p>`}</div>`;
   }).join("")}`;
 }
@@ -1466,17 +1559,18 @@ function finishGig() {
   GIG.perf = Math.round((0.7 + acc * 0.65) * 100) / 100;
   const box = $("#gres");
   if (box) box.innerHTML = `<p class="eyebrow">Précision ${Math.round(acc * 100)} %</p><h2 class="mh">${acc >= 0.8 ? "Le public est en délire" : acc >= 0.5 ? "Bon concert" : "Soirée difficile"}</h2>
-    <p class="hint">Recettes et nouveaux fans ×${GIG.perf.toFixed(2).replace(".", ",")}</p><button class="cta" data-gigdone="1">Saluer le public</button>`;
+    <p class="hint">${GIG.kind === "tour" ? "Pour toute la tournée : " : ""}Recettes et nouveaux fans ×${GIG.perf.toFixed(2).replace(".", ",")}</p><button class="cta" data-gigdone="1">Saluer le public</button>`;
   const st = $("#gstage"); if (st) st.hidden = true;
 }
 function endGig(perf) {
   if (!GIG) return; cancelAnimationFrame(GIG.raf);
   const g = GIG; GIG = null; modal = null;
-  const m = g.kind === "abroad" ? tourAbroad(S, g.id, perf) : concert(S, g.id, g.dates, perf);
+  const m = g.kind === "tour" ? launchTour(S, plan, perf) : g.kind === "abroad" ? tourAbroad(S, g.id, perf) : concert(S, g.id, g.dates, perf);
+  if (g.kind === "tour" && m) plan = { terr: "be", trans: "van", price: 1, dates: [], name: "" };
   after(m);
 }
 function viewGig() {
-  const v = GIG.kind === "abroad" ? MK.find(x => x.id === GIG.id).n : VENUES.find(x => x.id === GIG.id).n;
+  const v = GIG.kind === "tour" ? "Répétition générale de la tournée" : GIG.kind === "abroad" ? MK.find(x => x.id === GIG.id).n : VENUES.find(x => x.id === GIG.id).n;
   return `<div class="veil"><div class="sheet gig"><p class="eyebrow">${GIG.kind === "abroad" ? "Tournée · " : GIG.dates > 1 ? "Tournée de 4 dates · " : ""}${esc(v)}</p>
   <div id="gstage" class="gstage"><p class="hint">Tape au moment où l'anneau touche le cercle. ${BEATS} notes.</p>
     <button id="tap" class="tap" aria-label="Taper en rythme"><span id="ring" class="ring"></span><span class="core"></span><b id="gcount">Prêt ?</b></button>
@@ -1519,6 +1613,48 @@ function viewEmpire() {
     <button class="cta" data-do="runfest" ${done || !festWindow(S) || S.energy < 50 ? "disabled" : ""}>${done ? "Édition de cette année terminée" : festWindow(S) ? "Lancer le festival · 50 énergie" : `Le festival a lieu en été (semaines ${yr * 52 + 26} à ${yr * 52 + 32})`}</button>`;
   }
   return `<h2>Télé</h2>${tv}<h2>Ton label</h2>${lab}<h2>Ton festival</h2>${fest}`;
+}
+let plan = { terr: "be", trans: "van", price: 1, dates: [], name: "" }, confirmCancel = false;
+function viewTour() {
+  const p = palier(S.fans);
+  if (p < 2) return `<h2>Tournées</h2><p class="hint">Dès ${palName(S, 2)}, tu pourras organiser de vraies tournées, ville par ville.</p>`;
+  const T = S.tour;
+  if (T) {
+    const t = TERR.find(x => x.id === T.terr), left = T.dates.filter(d => !d.done).length;
+    return `<h2>En tournée</h2><div class="panel"><div class="vh"><h3 class="tn">${esc(T.name)}</h3><span class="cap">${t.n}</span></div>
+      <p class="hint">${TRANS.find(x => x.id === T.trans).n} · ${left} date${left > 1 ? "s" : ""} restante${left > 1 ? "s" : ""}, deux par semaine. Bilan provisoire : ${fmt(T.aud)} spectateurs, ${T.net >= 0 ? "+" : "−"}${fmt(Math.abs(T.net))} €, +${fmt(T.fans)} fans.</p>
+      <ol class="dates">${T.dates.map(d => `<li class="${d.done ? "done" : ""}"><span>${esc(d.city)}</span><small>${TVEN.find(v => v.id === d.v).n}</small><b>${d.done ? fmt(d.sold) + " pl." : "à venir"}</b></li>`).join("")}</ol>
+      ${confirmCancel ? `<p class="hint">Annuler la tournée ? Les salles déjà payées sont perdues et les fans seront déçus.</p>` : ""}
+      <button class="sm ${confirmCancel ? "danger" : ""}" data-do="tourcancel">${confirmCancel ? "Oui, annuler la tournée" : "Annuler la tournée"}</button></div>`;
+  }
+  const t = TERR.find(x => x.id === plan.terr);
+  const venues = TVEN.filter(v => venueOk(S, v));
+  const tot = planTotals(S, plan);
+  return `<h2>Organiser une tournée</h2>
+  <div class="panel">
+    <p class="lbl">Où ?</p>
+    <div class="chips">${TERR.map(x => `<button class="chip ${x.id === plan.terr ? "sel" : ""}" data-tterr="${x.id}" ${terrOpen(S, x) ? "" : "disabled"}>${x.n}</button>`).join("")}</div>
+    ${TERR.some(x => !terrOpen(S, x)) ? `<p class="hint">Les autres pays s'ouvrent à 20 % de présence (onglet Monde).</p>` : ""}
+    <p class="lbl">Les dates · touche une salle pour l'ajouter, retouche pour l'enlever</p>
+    <div class="cities">${t.cities.map(([c, w]) => { const sel = plan.dates.find(d => d.city === c);
+      return `<div class="city ${sel ? "on" : ""}"><div class="ch"><b>${c}</b><small>${w >= 2 ? "très grande ville" : w >= 1.2 ? "grande ville" : w >= 0.8 ? "ville moyenne" : "petite ville"}</small></div>
+      <div class="cv">${venues.map(v => { const on = sel && sel.v === v.id; const f = dateForecast(S, t, { city: c, v: v.id }, plan.price);
+        return `<button class="vch ${on ? "sel" : ""}" data-tdate="${c}" data-tv="${v.id}">${v.n}<small>${Math.round(f.sold / f.cap * 100)} % rempli</small></button>`; }).join("")}</div></div>`; }).join("")}</div>
+    <p class="lbl">Prix des billets</p>
+    <div class="chips">${TPRICE.map((x, i) => `<button class="chip ${i === plan.price ? "sel" : ""}" data-tpr="${i}">${x.n}</button>`).join("")}</div>
+    <p class="lbl">Transport</p>
+    <div class="chips">${TRANS.filter(x => transOk(t, x)).map(x => `<button class="chip ${x.id === plan.trans ? "sel" : ""}" data-ttrans="${x.id}">${x.n} · ${fmt(x.wk)} €/sem.</button>`).join("")}</div>
+    <p class="hint">${TRANS.find(x => x.id === plan.trans).d}.</p>
+    <label class="lbl" for="tname">Nom de la tournée</label><input id="tname" maxlength="36" placeholder="Ex. Comète Tour" autocomplete="off" value="${esc(plan.name)}">
+  </div>
+  ${plan.dates.length ? `<div class="panel kv">
+    <div><span>Dates</span><b>${plan.dates.length} en ${tot.weeks} semaine${tot.weeks > 1 ? "s" : ""}</b></div>
+    <div><span>Billets vendus prévus</span><b>${fmt(tot.sold)}</b></div>
+    <div><span>Billetterie</span><b>${fmt(tot.gross)} €</b></div>
+    <div><span>Salles, équipe technique, transport</span><b>−${fmt(tot.cost)} €</b></div>
+    <div><span>Résultat prévu</span><b class="${tot.net < 0 ? "neg" : ""}">${tot.net >= 0 ? "+" : "−"}${fmt(Math.abs(tot.net))} €</b></div>
+    <div><span>À payer maintenant (salles)</span><b>${fmt(tot.upfront)} €</b></div></div>
+    <button class="cta" data-do="tourgo" ${S.money < tot.upfront ? "disabled" : ""}>Répétition générale, puis départ</button>` : `<p class="hint">Ajoute au moins une date pour voir le budget.</p>`}`;
 }
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
@@ -1612,6 +1748,10 @@ document.addEventListener("click", e => {
   if (d.don) return after(donate(S, +d.don));
   if (d.promo2) return after(promoAbroad(S, d.promo2));
   if (d.tour2) return startGig({ kind: "abroad", id: d.tour2 });
+  if (d.tterr) { plan.terr = d.tterr; plan.dates = []; if (!transOk(TERR.find(x => x.id === plan.terr), TRANS.find(x => x.id === plan.trans))) plan.trans = TRANS.find(x => transOk(TERR.find(t => t.id === plan.terr), x)).id; return render(); }
+  if (d.ttrans) { plan.trans = d.ttrans; return render(); }
+  if (d.tpr !== undefined) { plan.price = +d.tpr; return render(); }
+  if (d.tdate) { const k = plan.dates.findIndex(x => x.city === d.tdate); if (k >= 0 && plan.dates[k].v === d.tv) plan.dates.splice(k, 1); else if (k >= 0) plan.dates[k].v = d.tv; else plan.dates.push({ city: d.tdate, v: d.tv }); return render(); }
   if (d.merch !== undefined) return after(buyMerch(S, +d.merch));
   if (d.brand) return after(launchBrand(S, d.brand));
   if (d.inv) return after(invest(S, d.inv, +d.amt || 0));
@@ -1633,6 +1773,8 @@ document.addEventListener("click", e => {
     case "ground": return after(upgradeGround(S));
     case "runfest": return after(runFest(S));
     case "tv": return after(startTV(S));
+    case "tourgo": plan.name = ($("#tname") || {}).value || ""; return startGig({ kind: "tour" });
+    case "tourcancel": confirmCancel ? (confirmCancel = false, after(cancelTour(S))) : (confirmCancel = true, render()); return;
     case "sceno": return after(buySceno(S));
     case "found": return after(createFoundation(S, causeSel));
     case "closefeat": modal = null; return render();
