@@ -161,6 +161,15 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .dates li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; align-items: baseline; }
 .dates small { color: var(--muted); font-size: 12px; } .dates b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--muted); }
 .dates li.done span { color: var(--muted); text-decoration: line-through; } .dates li.done b { color: var(--good); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
+.cd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cd b { font-size: 11px; text-align: center; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.cd.free b { color: var(--good); }
+.cs { height: 34px; border-radius: 5px; background: var(--surface); font-size: 9.5px; line-height: 1.1; padding: 3px; overflow: hidden; color: var(--amber-ink); font-weight: 600; word-break: break-word; }
+.cs:nth-child(4) { background: color-mix(in srgb, var(--surface) 70%, #000); }
+.cs.on { background: var(--amber); } .cs.fx { background: var(--rose); color: #23060f; }
+.offer { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px; border-radius: 12px; background: var(--bg); }
+.offer span { color: var(--muted); font-size: 13px; } .offer b { font-family: var(--mono); font-size: 18px; color: var(--amber); }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -260,7 +269,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 7, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 8, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
@@ -270,7 +279,8 @@ function newState(o) {
     moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0,
     markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0,
     fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0,
-    mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0, tour: null, tours: 0, bestTour: 0
+    mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0, tour: null, tours: 0, bestTour: 0,
+    cal: null, sponsors: [], nego: null, kids: [], baby: null, familyLast: 0, pendingWed: false
   };
 }
 
@@ -289,7 +299,8 @@ function migrate(S) {
   if (S && S.v === 4) Object.assign(S, { v: 5, fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0 });
   if (S && S.v === 5) Object.assign(S, { v: 6, mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0 });
   if (S && S.v === 6) Object.assign(S, { v: 7, tour: null, tours: 0, bestTour: 0 });
-  return S && S.v === 7 ? S : null;
+  if (S && S.v === 7) { Object.assign(S, { v: 8, cal: null, sponsors: [], nego: null, kids: [], baby: null, familyLast: 0, pendingWed: false }); if (S.love) Object.assign(S.love, { bond: 60, since: S.week, married: false }); }
+  return S && S.v === 8 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -477,7 +488,7 @@ function endWeek(S) {
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
   bizWeek(S, lines);
-  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr); tourWeek(S, lines);
+  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr); tourWeek(S, lines); sponsWeek(S, lines, pr); familyWeek(S, lines, pr); calBonus(S, lines);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -500,14 +511,15 @@ function endWeek(S) {
   // reset semaine
   S.energy = Math.min(100, S.energy + 60 + HOUSING[S.housing].e + (has(S, "coach") ? 10 : 0) - (S.moral < 15 ? 15 : 0)); S.active = false; S.vids = 0; if (S.teleCd > 0) S.teleCd--;
   S.week++;
+  newCal(S);
   // palier
   let pend = pr.p; const np = palier(S.fans);
   if (np > S.maxPal) {
     S.maxPal = np; lines.push(`Nouveau palier : ${palName(S, np)} !`); log(S, `Palier atteint : ${palName(S, np)}.`);
     if (np >= 3 && !S.flags.labelOffered) {
       S.flags.labelOffered = true; const adv = Math.round(S.fans * 1.5 + 10000);
-      pend = { t: `Le label « Onde Nord Records » veut te signer. Avance de ${fmt(adv)} €, promo massive (écoutes ×2,5) et grand studio gratuit. En échange, tu ne touches plus que 40 % des écoutes et 30 % des ventes d'albums.`, choices: [
-        { l: `Signer (+${fmt(adv)} €)`, f: S => { S.label = true; earn(S, adv); return "Contrat signé avec Onde Nord Records."; } },
+      pend = { t: `Le label « Onde Nord Records » veut te signer. Il propose une avance de ${fmt(adv)} €, une promo massive (écoutes ×2,5) et le grand studio gratuit. En échange, tu ne touches plus que 40 % des écoutes et 30 % des ventes d'albums.`, choices: [
+        { l: "Négocier l'avance", f: S => { openNego(S, { kind: "label", who: "Onde Nord Records", base: adv, unit: "€", title: "Avance du label" }); return null; } },
         { l: "Rester indépendant", f: () => "Tu restes indépendant. Tout ce que tu gagnes est à toi." }] };
     }
     if (np === 6 && !S.won) { S.won = true; pend = { t: `${S.name} est désormais une star internationale. Tu as réussi en ${S.week - 1} semaines. Tu peux continuer ta carrière.`, win: true, choices: [{ l: "Continuer", f: () => "La carrière continue." }] }; }
@@ -600,7 +612,7 @@ Object.assign(ACTIONS, {
     }
     S.moral = clamp(S.moral - 3, 0, 100); return "Soirée sympa, mais pas de rencontre cette fois.";
   } },
-  date: { e: 15, cost: 80, cond: S => !!S.love, run: S => { S.love.last = S.week; S.moral = clamp(S.moral + 12, 0, 100); return `Soirée en amoureux avec ${S.love.name} : moral +12.`; } }
+  date: { e: 15, cost: 80, cond: S => !!S.love, run: S => { S.love.last = S.week; S.love.bond = clamp((S.love.bond || 50) + 15, 0, 100); S.moral = clamp(S.moral + 12, 0, 100); return `Soirée en amoureux avec ${S.love.name} : moral +12, complicité +15.`; } }
 });
 function vacPrix(S) { return [0, 0, 600, 1500, 5000, 15000, 40000, 80000][palier(S.fans)]; }
 
@@ -698,10 +710,6 @@ function lifeWeek(S, lines) {
   if (S.housing > 0) dm += 1;
   S.moral = clamp(S.moral + dm, 0, 100);
   // couple
-  if (S.love && S.week - S.love.last >= 6) {
-    lines.push(`${S.love.name} te quitte : tu n'étais jamais là`); log(S, `Rupture avec ${S.love.name}.`);
-    S.love = null; S.moral = clamp(S.moral - 25, 0, 100);
-  }
   if (S.moral < 20) lines.push(`Moral au plus bas (${Math.round(S.moral)}) : ta voix et tes progrès en souffrent. Pense à souffler.`);
   if (S.vacCd > 0) S.vacCd--;
 }
@@ -1079,10 +1087,10 @@ function runFest(S) {
 
 // ----- Télé et jury -----
 function tvCachet(S) { return 3000 * Math.pow(2, Math.max(0, palier(S.fans) - 3)); }
-function startTV(S) {
+function startTV(S, cach) {
   if (S.tv || S.tvCd > 0 || palier(S.fans) < 3) return null;
-  S.tv = { ep: 0, aud: 0, cands: [0, 1, 2, 3].map(() => ({ n: pname(), v: ri(30, 60), c: ri(30, 70), out: false })) };
-  const m = `Tu deviens jurée·juré de « La Voix d'Or ». Saison de 10 émissions, ${fmt(tvCachet(S))} € par émission.`; log(S, m); return m;
+  S.tv = { ep: 0, aud: 0, cach: cach || tvCachet(S), cands: [0, 1, 2, 3].map(() => ({ n: pname(), v: ri(30, 60), c: ri(30, 70), out: false })) };
+  const m = `Tu deviens jurée·juré de « La Voix d'Or ». Saison de 10 émissions, ${fmt(S.tv.cach)} € par émission.`; log(S, m); return m;
 }
 function coachCand(S, i) {
   const c = S.tv && S.tv.cands[i]; if (!c || c.out || S.energy < 15) return null;
@@ -1093,7 +1101,7 @@ function candScore(c) { return c.v * 0.6 + c.c * 0.4 + rnd(-10, 10); }
 function tvWeek(S, lines, pr) {
   if (S.tvCd > 0) S.tvCd--;
   const T = S.tv; if (!T) return;
-  T.ep++; const cach = tvCachet(S); earn(S, cach);
+  T.ep++; const cach = T.cach || tvCachet(S); earn(S, cach);
   const alive = T.cands.filter(c => !c.out);
   const q = alive.reduce((a, c) => a + c.v, 0) / alive.length;
   const aud = Math.round((600000 + S.fans * 0.3) * (0.7 + q / 200) * buzzMult(S) * (1 + T.ep * 0.04));
@@ -1195,6 +1203,190 @@ function tourWeek(S, lines) {
     lines.push(m); log(S, m); S.tours = (S.tours || 0) + 1; S.bestTour = Math.max(S.bestTour || 0, T.aud); S.tour = null;
   }
 }
+// ===== MyStar — négociation et sponsors =====
+// Une négociation : l'autre partie a un plafond caché. Tu peux accepter, demander plus ou refuser.
+function openNego(S, o) {
+  S.nego = Object.assign({ round: 0, msg: "", max: Math.round(o.base * rnd(1.08, 1.5)) }, o, { cur: o.base });
+}
+function negoAsk(S, pct) {
+  const N = S.nego; if (!N || N.round >= 3) return;
+  const want = Math.round(N.cur * (1 + pct));
+  N.round++;
+  if (want <= N.max) {
+    if (Math.random() < 0.75) { N.cur = want; N.msg = `« C'est d'accord pour ${fmt(want)} ${N.unit}. »`; N.agreed = true; return; }
+    N.cur = Math.round((N.cur + want) / 2); N.msg = `« On peut monter à ${fmt(N.cur)} ${N.unit}, pas plus. »`; return;
+  }
+  const walk = clamp((want - N.max) / N.max * 3, 0.2, 0.9);
+  if (Math.random() < walk) { N.msg = "« Là, c'est trop. On arrête les discussions. »"; N.lost = true; return; }
+  N.cur = Math.max(N.cur, Math.round(N.max * rnd(0.88, 1))); N.msg = `« Notre dernière proposition : ${fmt(N.cur)} ${N.unit}. »`; N.round = 3;
+}
+const NEGO_DONE = {
+  label: (S, N) => { S.label = true; earn(S, N.cur); return `Contrat signé avec Onde Nord Records : avance de ${fmt(N.cur)} €.`; },
+  tv: (S, N) => startTV(S, N.cur),
+  spons: (S, N) => {
+    const b = SPONS.find(x => x.n === N.brand);
+    S.sponsors.push({ n: b.n, cat: b.cat, wk: N.cur, until: S.week + N.weeks, risk: b.risk });
+    S.energy = Math.max(0, S.energy - 20); S.buzz = clamp(S.buzz + (b.img || 0) * 100, -50, 50);
+    return `Contrat signé avec ${b.n} : ${fmt(N.cur)} € par semaine pendant ${N.weeks} semaines. Tournage de la pub : −20 énergie.`;
+  }
+};
+function negoClose(S, accept) {
+  const N = S.nego; if (!N) return null; S.nego = null;
+  if (accept && !N.lost) { const m = NEGO_DONE[N.kind](S, N); if (m) log(S, m); return m; }
+  const m = N.lost ? `${N.who} a quitté la table des négociations.` : `Tu refuses l'offre de ${N.who}.`;
+  log(S, m); return m;
+}
+
+// ----- Sponsors -----
+const SPONS = [
+  { n: "Pétillant Cola", cat: "Boisson", risk: 0.01, img: 0, min: 2 },
+  { n: "Pixelia Games", cat: "Jeux vidéo", risk: 0.01, img: 0.02, min: 2 },
+  { n: "Grignote Chips", cat: "Snack", risk: 0.035, img: -0.03, min: 2 },
+  { n: "Kaleo Sport", cat: "Sport", risk: 0.015, img: 0.03, min: 3 },
+  { n: "Aurore Parfums", cat: "Beauté", risk: 0.008, img: 0.05, min: 3 },
+  { n: "Voltéo", cat: "Voiture", risk: 0.012, img: 0.04, min: 4 },
+  { n: "Banque Lumen", cat: "Banque", risk: 0.03, img: 0, min: 4 },
+  { n: "Maison Arden", cat: "Luxe", risk: 0.006, img: 0.08, min: 5 }
+];
+function sponsorOffer(S) {
+  const cats = new Set(S.sponsors.map(s => s.cat));
+  const list = SPONS.filter(b => palier(S.fans) >= b.min && !cats.has(b.cat));
+  if (!list.length) return null;
+  const b = pick(list), weeks = pick([12, 26, 52]);
+  const base = Math.round((S.fans * 0.004 * buzzMult(S) + 300) / 10) * 10;
+  return { t: `${b.n} (${b.cat.toLowerCase()}) veut ton image : ${fmt(base)} € par semaine pendant ${weeks} semaines, exclusivité dans sa catégorie.`, choices: [
+    { l: "Négocier", f: S => { openNego(S, { kind: "spons", who: b.n, brand: b.n, weeks, base, unit: "€ par semaine", title: `Contrat ${b.n}` }); return null; } },
+    { l: "Refuser", f: () => `Tu refuses la proposition de ${b.n}.` }] };
+}
+EVENTS.push({ w: 3, cond: S => palier(S.fans) >= 2 && S.sponsors.length < 5, run: S => sponsorOffer(S) || { t: "Une marque hésite à te contacter… pas cette fois." } });
+function sponsWeek(S, lines, pr) {
+  if (!S.sponsors.length) return;
+  let tot = 0;
+  S.sponsors = S.sponsors.filter(s => {
+    if (S.week >= s.until) { lines.push(`Fin du contrat avec ${s.n}`); return false; }
+    tot += s.wk; return true;
+  });
+  if (tot) { earn(S, tot); lines.push(`Sponsors : +${fmt(tot)} €`); }
+  if (!pr.p) {
+    const s = S.sponsors.find(x => Math.random() < x.risk);
+    if (s) pr.p = { t: `Scandale chez ${s.n} : la marque est accusée de tromper ses clients. Les médias te demandent si tu restes son égérie.`, choices: [
+      { l: `Rompre (pénalité ${fmt(s.wk * 4)} €)`, f: S => { spend(S, s.wk * 4); S.sponsors = S.sponsors.filter(x => x !== s); S.buzz = clamp(S.buzz + 5, -50, 50); return `Tu romps avec ${s.n}. Le public apprécie (buzz +5).`; } },
+      { l: "Rester fidèle", f: S => { S.buzz = clamp(S.buzz - 20, -50, 50); return `Tu restes avec ${s.n}. Bad buzz (−20).`; } }] };
+  }
+}
+// ===== MyStar — vie de famille =====
+const KID_M = ["Léon", "Gabriel", "Arthur", "Louis", "Noah", "Jules", "Victor", "Marius"];
+const KID_F = ["Alice", "Louise", "Olivia", "Mia", "Lina", "Rose", "Victoria", "Nina"];
+function kidAge(S, k) { return Math.floor((S.week - k.born) / 52); }
+function familyChoice(S, how) {
+  const a = pick(KID_M), b = pick(KID_F), c = pick(KID_M.filter(x => x !== a));
+  const name = n => S => { S.kids.push({ n, born: S.week }); S.moral = clamp(S.moral + 25, 0, 100); if (S.love) S.love.bond = clamp(S.love.bond + 15, 0, 100); return `Bienvenue à ${n} ! Moral +25.`; };
+  return { t: `${how} Quel prénom ?`, choices: [{ l: a, f: name(a) }, { l: b, f: name(b) }, { l: c, f: name(c) }] };
+}
+Object.assign(ACTIONS, {
+  propose: { e: 15, cost: 0, cond: S => S.love && !S.love.married && S.week - S.love.since >= 12, ready: S => S.love.bond >= 50 && S.money >= ringPrix(S), why: S => S.love.bond < 50 ? "Complicité de 50 requise" : "Pas assez pour la bague", run: S => {
+    spend(S, ringPrix(S)); S.pendingWed = true; return `Tu poses un genou à terre devant ${S.love.name}… C'est oui !`; } },
+  family: { e: 15, cost: 0, cond: S => !!(S.love || S.kids.length), run: S => {
+    S.familyLast = S.week; S.moral = clamp(S.moral + 10, 0, 100); if (S.love) S.love.bond = clamp(S.love.bond + 8, 0, 100);
+    return S.kids.length ? `Journée en famille avec ${S.kids.map(k => k.n).join(" et ")} : moral +10.` : `Dimanche tranquille à deux : moral +10.`; } },
+  baby: { e: 0, cost: 0, cond: S => S.love && !S.baby && S.kids.length < 4 && S.love.bond >= 40, run: S => {
+    S.baby = { due: S.week + 40, how: "Ton bébé est né." }; return `${S.love.name} et toi attendez un enfant. Naissance prévue semaine ${S.week + 40}.`; } },
+  adopt: { e: 10, cost: 15000, cond: S => !S.baby && S.kids.length < 4 && palier(S.fans) >= 2, run: S => {
+    S.baby = { due: S.week + 30, how: "Ton dossier d'adoption est accepté : un enfant arrive chez toi." }; return `Dossier d'adoption déposé. Réponse prévue semaine ${S.week + 30}.`; } }
+});
+function ringPrix(S) { return [500, 800, 1500, 4000, 15000, 50000, 150000, 300000][palier(S.fans)]; }
+function weddingChoice(S) {
+  return { t: `Comment veux-tu célébrer ton mariage avec ${S.love.name} ?`, choices: [
+    { l: "Mariage intime (20 000 €)", f: S => { spend(S, 20000); S.love.married = true; S.love.bond = clamp(S.love.bond + 20, 0, 100); S.moral = clamp(S.moral + 20, 0, 100); return `Mariage intime avec ${S.love.name}, entre proches. Moral +20.`; } },
+    { l: `Grand mariage médiatisé (${fmt(wedPrix(S))} €)`, f: S => { spend(S, wedPrix(S)); S.love.married = true; S.love.bond = clamp(S.love.bond + 10, 0, 100); S.moral = clamp(S.moral + 15, 0, 100); S.buzz = clamp(S.buzz + 20, -50, 50); const g = Math.round(S.fans * 0.03); S.fans += g; return `Mariage de l'année avec ${S.love.name}, en couverture de tous les magazines : +${fmt(g)} fans.`; } }] };
+}
+function wedPrix(S) { return Math.max(60000, Math.round(S.fans * 0.15)); }
+function familyWeek(S, lines, pr) {
+  if (S.love) {
+    S.love.bond = clamp(S.love.bond - (S.love.married ? 3 : 4) - (S.tour ? 2 : 0), 0, 100);
+    if (S.love.bond <= 0) {
+      if (S.love.married) { const l = Math.round(Math.max(0, S.money) * 0.25); spend(S, l); lines.push(`Divorce avec ${S.love.name} : −${fmt(l)} € de partage`); S.buzz = clamp(S.buzz - 10, -50, 50); }
+      else lines.push(`${S.love.name} te quitte : tu n'étais jamais là`);
+      log(S, `Séparation avec ${S.love.name}.`); S.love = null; S.moral = clamp(S.moral - 30, 0, 100);
+    } else if (S.love.bond < 25) lines.push(`Ta relation avec ${S.love.name} bat de l'aile (complicité ${Math.round(S.love.bond)})`);
+  }
+  if (S.kids.length && S.week - (S.familyLast || 0) >= 4) { S.moral = clamp(S.moral - 5, 0, 100); lines.push("Tes enfants te réclament : moral −5"); }
+  S.kids.forEach(k => { if ((S.week - k.born) % 52 === 0 && S.week > k.born) lines.push(`${k.n} fête ses ${kidAge(S, k)} an${kidAge(S, k) > 1 ? "s" : ""}`); });
+  if (S.baby && S.week >= S.baby.due && !pr.p) { pr.p = familyChoice(S, S.baby.how); S.baby = null; }
+}
+// ===== MyStar — semaine jour par jour =====
+// 7 jours × 3 moments (matin, après-midi, soir). Chaque activité prend sa place dans l'agenda.
+const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const MOMENTS = ["Matin", "Après-midi", "Soir"];
+// où et combien : j = journée (matin ou après-midi), s = soir, d = journée complète (3 créneaux), w = semaine entière
+const SLOT = {
+  job: ["j", 2, "Resto"], dedicaces: ["j", 1, "Dédicaces"], chant: ["j", 1, "Chant"], chantPro: ["j", 1, "Coach vocal"], ecrit: ["j", 1, "Écriture"], ecritPro: ["j", 1, "Parolier"],
+  repet: ["j", 1, "Répét'"], scenePro: ["j", 1, "Coach scène"], video: ["j", 1, "Vidéo"], tele: ["s", 1, "Télé"], amis: ["s", 1, "Amis"], vacances: ["w", 0, "Vacances"],
+  rencontre: ["s", 1, "Sortie"], date: ["s", 1, "En amoureux"], insta: ["j", 1, "Insta"], live: ["s", 1, "Live"], interview: ["j", 1, "Interview"],
+  tapis: ["s", 1, "Tapis rouge"], theatre: ["j", 1, "Théâtre"], casting: ["j", 1, "Casting"], vegas: ["w", 0, "Las Vegas"], charite: ["s", 1, "Charité"],
+  scout: ["j", 1, "Repérage"], propose: ["s", 1, "Demande"], family: ["d", 3, "Famille"], baby: ["s", 1, "Projet bébé"], adopt: ["j", 1, "Adoption"],
+  write: ["j", 1, "Écriture"], record: ["j", 2, "Studio"], release: ["j", 1, "Sortie"], album: ["d", 3, "Album"], clip: ["d", 3, "Clip"], feat: ["j", 1, "Featuring"],
+  gig: ["s", 1, "Concert"], promo: ["d", 3, "Promo"], abroad: ["d", 3, "Tournée"], asingle: ["j", 1, "Label"], acoach: ["j", 1, "Label"], coachCand: ["j", 1, "Coaching télé"], fest: ["w", 0, "Festival"]
+};
+function emptyCal() { return DAYS.map(() => [null, null, null]); }
+// cherche une place ; renvoie la liste des créneaux [jour, moment] ou null
+function findSlots(S, kind) {
+  const C = S.cal || (S.cal = emptyCal()), [w, n] = SLOT[kind];
+  if (w === "w") return C.every(d => d.every(x => !x)) ? C.flatMap((d, i) => [[i, 0], [i, 1], [i, 2]]) : null;
+  for (let i = 0; i < 7; i++) {
+    const d = C[i];
+    if (w === "s" && !d[2]) return [[i, 2]];
+    if (w === "d" && !d[0] && !d[1] && !d[2]) return [[i, 0], [i, 1], [i, 2]];
+    if (w === "j") {
+      const free = [0, 1].filter(k => !d[k]);
+      if (free.length >= n) return free.slice(0, n).map(k => [i, k]);
+    }
+  }
+  return null;
+}
+function calWhy(S, kind) { return findSlots(S, kind) ? "" : SLOT[kind][0] === "w" ? "Semaine déjà entamée" : SLOT[kind][0] === "s" ? "Plus de soirée libre" : "Agenda plein"; }
+function book(S, kind, label) { const sl = findSlots(S, kind); if (!sl) return false; sl.forEach(([d, m]) => { S.cal[d][m] = { k: kind, t: label || SLOT[kind][2] }; }); return true; }
+function reserve(S, d, m, t) { if (!S.cal[d][m]) S.cal[d][m] = { k: "fixed", t }; }
+// nouvelle semaine : on vide et on bloque les rendez-vous fixes
+function newCal(S) {
+  S.cal = emptyCal();
+  if (S.tour) { reserve(S, 4, 2, "Date de tournée"); reserve(S, 5, 2, "Date de tournée"); reserve(S, 4, 1, "Route"); reserve(S, 5, 1, "Balances"); }
+  if (S.tv) { reserve(S, 5, 2, "Émission télé"); reserve(S, 5, 1, "Répétition télé"); }
+  if (S.film) for (let d = 0; d < 3; d++) { reserve(S, d, 0, "Tournage film"); reserve(S, d, 1, "Tournage film"); }
+}
+// bonus des jours libres, calculé avant de changer de semaine
+function calBonus(S, lines) {
+  if (!S.cal) return;
+  const free = S.cal.filter(d => d.every(x => !x)).length;
+  if (free) { S.energy = Math.min(100, S.energy + free * 4); S.moral = clamp(S.moral + free * 2, 0, 100); lines.push(`${free} jour${free > 1 ? "s" : ""} de repos complet : +${free * 4} énergie, moral +${free * 2}`); }
+}
+// on enveloppe les fonctions existantes : l'action n'a lieu que s'il reste de la place
+function slotted(fn, kindOf, labelOf) {
+  return function (...args) {
+    const S = args[0], kind = typeof kindOf === "function" ? kindOf(...args) : kindOf;
+    if (!kind || !SLOT[kind]) return fn(...args);
+    if (!findSlots(S, kind)) return null;
+    const r = fn(...args);
+    if (r) book(S, kind, labelOf ? labelOf(...args) : null);
+    return r;
+  };
+}
+const _canDo = canDo;
+canDo = function (S, id) { const r = _canDo(S, id); if (r) return r; return SLOT[id] ? calWhy(S, id) : ""; };
+doAction = slotted(doAction, (S, id) => id);
+writeSong = slotted(writeSong, "write");
+recordSong = slotted(recordSong, "record");
+releaseSong = slotted(releaseSong, "release");
+releaseAlbum = slotted(releaseAlbum, "album");
+shootClip = slotted(shootClip, "clip");
+askFeat = slotted(askFeat, "feat");
+concert = slotted(concert, "gig", (S, v) => VENUES.find(x => x.id === v).n);
+promoAbroad = slotted(promoAbroad, "promo", (S, id) => "Promo " + MK.find(m => m.id === id).n);
+tourAbroad = slotted(tourAbroad, "abroad");
+artistSingle = slotted(artistSingle, "asingle");
+coachArtist = slotted(coachArtist, "acoach");
+coachCand = slotted(coachCand, "coachCand");
+runFest = slotted(runFest, "fest");
 // ===== MyStar — guide de départ et déblocage des onglets =====
 const QUESTS = [
   { t: "Poste ta première vidéo", h: "Agenda → Poster une vidéo", ok: S => S.fans > 0, r: 50 },
@@ -1323,8 +1515,13 @@ function questCard() {
   const q = QUESTS[S.quest];
   return `<div class="quest"><p class="eyebrow">Objectif ${S.quest + 1}/${QUESTS.length} · récompense ${fmt(q.r)} €</p><h3>${q.t}</h3><p>${q.h}</p></div>`;
 }
+function viewCal() {
+  const C = S.cal || emptyCal();
+  return `<div class="cal" aria-label="Agenda de la semaine">${DAYS.map((d, i) => `<div class="cd ${C[i].every(x => !x) ? "free" : ""}"><b>${d}</b>${C[i].map((x, m) => `<span class="cs ${x ? (x.k === "fixed" ? "fx" : "on") : ""}" title="${MOMENTS[m]}">${x ? esc(x.t) : ""}</span>`).join("")}</div>`).join("")}</div>
+  <p class="hint">Matin, après-midi, soir. Les concerts et sorties se font le soir. Chaque jour laissé entièrement libre rend 4 énergie et 2 de moral.</p>`;
+}
 function viewAgenda() {
-  return `${questCard()}
+  return `${questCard()}${viewCal()}
   <h2>Gagner sa vie</h2>
   ${card("job", "Petit job au resto", "Une semaine de service : +150 €. Disparaît quand tu deviens une Révélation.")}
   ${card("dedicaces", "Dédicaces et merch", "Tu signes des pochettes et vends des t-shirts.")}
@@ -1405,7 +1602,7 @@ function viewScene() {
 }
 function loveChoice() {
   const [a, b] = S.pendingLove; S.pendingLove = null;
-  const pickL = n => S => { S.love = { name: n, last: S.week }; S.moral = clamp(S.moral + 15, 0, 100); return `Tu es en couple avec ${n} : moral +15.`; };
+  const pickL = n => S => { S.love = { name: n, last: S.week, bond: 55, since: S.week, married: false }; S.moral = clamp(S.moral + 15, 0, 100); return `Tu es en couple avec ${n} : moral +15.`; };
   S.pending = { t: `Deux personnes t'ont plu ce soir : ${a} et ${b}. Qui rappelles-tu ?`, choices: [{ l: `Rappeler ${a}`, f: pickL(a) }, { l: `Rappeler ${b}`, f: pickL(b) }, { l: "Personne, je reste célibataire", f: () => "Tu restes célibataire." }] };
   modal = { type: "ev", ev: S.pending };
 }
@@ -1429,7 +1626,15 @@ function viewVie() {
   const sal = TEAM.filter(t => has(S, t.id)).reduce((a, t) => a + t.sal, 0);
   return `
   <h2>Ton cœur</h2>
-  <div class="panel"><p class="hint">${S.love ? `En couple avec <b>${esc(S.love.name)}</b>. Pense à vos soirées à deux (Agenda).` : "Célibataire. Sors faire des rencontres depuis l'Agenda."}</p></div>
+  <div class="panel"><p class="hint">${S.love ? `${S.love.married ? "Marié·e" : "En couple"} avec <b>${esc(S.love.name)}</b>${S.love.married ? "" : ` depuis la semaine ${S.love.since}`}. La complicité baisse chaque semaine (encore plus en tournée) : soirées à deux et journées en famille la font remonter. À zéro, c'est la ${S.love.married ? "séparation et le partage des biens" : "rupture"}.` : "Célibataire. Sors faire des rencontres depuis l'Agenda."}</p>
+  ${S.love ? bar("Complicité", S.love.bond) : ""}
+  ${S.kids.length ? `<p class="hint">Enfants : ${S.kids.map(k => `<b>${esc(k.n)}</b> (${kidAge(S, k)} an${kidAge(S, k) > 1 ? "s" : ""})`).join(", ")}.</p>` : ""}
+  ${S.baby ? `<p class="hint">Un enfant arrive vers la semaine ${S.baby.due}.</p>` : ""}</div>
+  ${card("date", S.love ? `Soirée avec ${esc(S.love.name)}` : "Soirée en amoureux", "Complicité +15, moral +12.")}
+  ${card("family", "Journée en famille", "Une journée entière, sans téléphone. Moral +10, complicité +8.")}
+  ${card("propose", "Faire ta demande en mariage", `Bague : ${fmt(ringPrix(S))} €. Il faut au moins 12 semaines ensemble et une complicité de 50.`)}
+  ${card("baby", "Avoir un enfant ensemble", "Naissance 40 semaines plus tard. Il faut une complicité de 40.")}
+  ${card("adopt", "Adopter un enfant", "Seul·e ou à deux. Arrivée 30 semaines après le dossier.")}
   <h2>Logement</h2>
   ${HOUSING.map((h, i) => {
     const ok = p >= h.min, cur = i === S.housing;
@@ -1476,7 +1681,10 @@ function viewBusiness() {
   const amts = [1000, 10000, 100000];
   const invRow = (k, n, d) => `<div class="venue"><div class="vh"><h3>${n}</h3><span class="cap">${fmt(S.inv[k])} €</span></div><p>${d}</p>
     <div class="vb">${amts.map(a => `<button class="sm" data-inv="${k}" data-amt="${a}" ${S.money < a ? "disabled" : ""}>+${fmt(a)} €</button>`).join("")}<button class="sm" data-out="${k}" ${S.inv[k] < 1 ? "disabled" : ""}>Tout retirer</button></div></div>`;
-  return `<div class="panel kv"><div><span>Patrimoine total</span><b>${fmt(netWorth(S))} €</b></div><div><span>Dont placé</span><b>${fmt(netWorth(S) - S.money)} €</b></div></div>
+  return `<h2>Sponsors</h2>
+  ${S.sponsors.length ? S.sponsors.map(s => `<div class="act"><div class="txt"><h3>${esc(s.n)}</h3><p>${esc(s.cat)} · ${fmt(s.wk)} € par semaine · jusqu'à la semaine ${s.until}</p></div><span class="here">Égérie</span></div>`).join("") : `<p class="hint">${palier(S.fans) >= 2 ? "Aucun contrat. Les marques te contacteront au fil des semaines : tu pourras négocier." : `Les marques s'intéresseront à toi dès ${palName(S, 2)}.`}</p>`}
+  <h2>Patrimoine</h2>
+  <div class="panel kv"><div><span>Patrimoine total</span><b>${fmt(netWorth(S))} €</b></div><div><span>Dont placé</span><b>${fmt(netWorth(S) - S.money)} €</b></div></div>
   <h2>Merch</h2>
   <p class="hint">Stock : ${fmt(S.merch)} articles, vendus 25 € pièce chaque semaine selon tes fans et tes concerts.</p>
   ${MERCH.map((m, i) => p >= m.min ? `<div class="act"><div class="txt"><h3>${m.n}</h3><p>${(m.prix / m.q).toFixed(2).replace(".", ",")} € l'article</p></div><button class="go" data-merch="${i}" ${S.money < m.prix ? "disabled" : ""}><span>${fmt(m.prix)} €</span></button></div>` : "").join("")}
@@ -1656,6 +1864,17 @@ function viewTour() {
     <div><span>À payer maintenant (salles)</span><b>${fmt(tot.upfront)} €</b></div></div>
     <button class="cta" data-do="tourgo" ${S.money < tot.upfront ? "disabled" : ""}>Répétition générale, puis départ</button>` : `<p class="hint">Ajoute au moins une date pour voir le budget.</p>`}`;
 }
+function viewNego() {
+  const N = S.nego; if (!N) return "";
+  const fin = N.agreed || N.lost || N.round >= 3;
+  return `<div class="veil"><div class="sheet"><p class="eyebrow">Négociation · ${esc(N.who)}</p><h2 class="mh sm2">${esc(N.title)}</h2>
+  <div class="offer"><span>Offre sur la table</span><b>${fmt(N.cur)} ${esc(N.unit)}</b></div>
+  ${N.msg ? `<p class="evt">${esc(N.msg)}</p>` : `<p class="hint">Tu peux accepter, ou tenter d'obtenir plus. Plus tu demandes, plus tu risques qu'ils partent. Trois échanges maximum.</p>`}
+  <div class="ch">${N.lost ? `<button class="cta ghost" data-nend="0">Tant pis</button>`
+    : `<button class="cta" data-nend="1">Accepter ${fmt(N.cur)} ${esc(N.unit)}</button>
+      ${fin ? "" : `<button class="cta ghost" data-nask="0.15">Demander 15 % de plus</button><button class="cta ghost" data-nask="0.35">Demander 35 % de plus</button>`}
+      <button class="cta ghost" data-nend="0">Refuser</button>`}</div></div></div>`;
+}
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
   const p = palier(S.fans);
@@ -1685,6 +1904,7 @@ function viewCarriere() {
 }
 function viewModal() {
   if (modal.type === "gig") return viewGig();
+  if (modal.type === "nego") return viewNego();
   if (modal.type === "feat") {
     const s = S.songs.find(x => x.id === modal.id);
     return `<div class="veil"><div class="sheet"><p class="eyebrow">Featuring · 10 énergie par demande</p><h2 class="mh sm2">« ${esc(s.title)} »</h2>
@@ -1727,7 +1947,9 @@ document.addEventListener("click", e => {
     log(S, `${pr}, ${a} ans, se lance dans la musique sous le nom de ${n}.`); tab = "agenda"; return after();
   }
   if (d.tab) { tab = d.tab; confirmReset = false; render(); window.scrollTo(0, 0); return; }
-  if (d.act) { const m = doAction(S, d.act); if (S.pendingLove) { loveChoice(); } return after(m); }
+  if (d.act) { const m = doAction(S, d.act); if (S.pendingLove) { loveChoice(); } if (S.pendingWed) { S.pendingWed = false; S.pending = weddingChoice(S); modal = { type: "ev", ev: S.pending }; } return after(m); }
+  if (d.nask !== undefined) { negoAsk(S, +d.nask); return render(); }
+  if (d.nend !== undefined) { const m = negoClose(S, d.nend === "1"); modal = S.pending ? { type: "ev", ev: S.pending } : null; return after(m); }
   if (d.wg !== undefined) { const t = $("#stitle").value; writeGenre = +d.wg; render(); $("#stitle").value = t; return; }
   if (d.promo !== undefined) { const t = $("#atitle").value; albumPromo = +d.promo; render(); $("#atitle").value = t; return; }
   if (d.rec) return after(recordSong(S, +d.rec, d.st));
@@ -1764,7 +1986,7 @@ document.addEventListener("click", e => {
   if (b.id === "tap") return;
   if (d.gigskip) return endGig(1);
   if (d.gigdone) return endGig(GIG.perf);
-  if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; const m = c.f(S); log(S, m); S.pending = null; modal = null; return after(m); }
+  if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; S.pending = null; const m = c.f(S); if (m) log(S, m); modal = S.nego ? { type: "nego" } : S.pending ? { type: "ev", ev: S.pending } : null; return after(m); }
   switch (d.do) {
     case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
     case "fandom": return after(setFandom(S, $("#fandom").value));
@@ -1772,7 +1994,7 @@ document.addEventListener("click", e => {
     case "mkfest": return after(createFest(S, $("#fname").value));
     case "ground": return after(upgradeGround(S));
     case "runfest": return after(runFest(S));
-    case "tv": return after(startTV(S));
+    case "tv": openNego(S, { kind: "tv", who: "La chaîne", base: tvCachet(S), unit: "€ par émission", title: "Cachet de jury" }); modal = { type: "nego" }; return render();
     case "tourgo": plan.name = ($("#tname") || {}).value || ""; return startGig({ kind: "tour" });
     case "tourcancel": confirmCancel ? (confirmCancel = false, after(cancelTour(S))) : (confirmCancel = true, render()); return;
     case "sceno": return after(buySceno(S));
