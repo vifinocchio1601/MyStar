@@ -1,0 +1,680 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>MyStar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout : une loge de concert la nuit. Colonne unique pour le téléphone, en-tête collant, dock du bas avec le bouton de semaine. Look sombre assumé (scène). */
+:root {
+  --bg: #17131f; --surface: #221c2d; --raise: #2c2539; --line: #3a3149;
+  --fg: #f3ece2; --muted: #a99fb6; --amber: #f0a33c; --amber-ink: #241606;
+  --rose: #e4688a; --good: #74c69d; --bad: #ef7461;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+#app { max-width: 560px; margin: 0 auto; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button, input { font: inherit; color: inherit; touch-action: manipulation; }
+input { font-size: 16px; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; outline: none; }
+input:focus { border-color: var(--amber); }
+button { cursor: pointer; border: 0; background: none; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button:disabled { cursor: not-allowed; opacity: .42; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.eyebrow { margin: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Départ */
+.setup { display: flex; flex-direction: column; gap: 14px; padding-block: 40px 60px; }
+.big { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 10vw, 52px); line-height: .98; letter-spacing: -.02em; }
+.lead { margin: 0; color: var(--muted); max-width: 60ch; }
+.lbl { display: block; margin: 6px 0 -6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 500; }
+.chip.sel { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 700; }
+.cta { width: 100%; padding: 14px; border-radius: 12px; background: var(--amber); color: var(--amber-ink); font-weight: 700; font-size: 16px; }
+.cta.ghost { background: var(--raise); color: var(--fg); }
+
+/* En-tête */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.r1 { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.who { min-width: 0; }
+.who h1 { font-family: var(--display); font-weight: 800; font-size: 28px; line-height: 1; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tier span { display: inline-block; padding: 6px 10px; border: 1.5px dashed var(--amber); color: var(--amber); border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.meters { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 8px; }
+.m { background: var(--surface); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.m b { font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.neg { color: var(--bad); }
+.vu { display: flex; gap: 2px; align-items: flex-end; height: 18px; margin-top: 2px; }
+.vu i { flex: 1; height: 100%; border-radius: 2px; background: var(--line); }
+.vu i.on { background: var(--good); } .vu i.warm { background: var(--amber); } .vu i.hot { background: var(--rose); }
+.prog { height: 4px; background: var(--surface); border-radius: 4px; overflow: hidden; }
+.prog div { height: 100%; background: linear-gradient(90deg, var(--rose), var(--amber)); }
+.nexttier { margin: -4px 0 0; font-size: 12px; color: var(--muted); }
+
+/* Contenu */
+main { padding-block: 6px 170px; display: flex; flex-direction: column; gap: 10px; }
+main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin-top: 14px; }
+.act { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.act .txt { min-width: 0; }
+.act h3 { font-size: 16px; font-weight: 700; }
+.act p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.go { flex: none; min-width: 104px; padding: 10px 12px; border-radius: 10px; background: var(--amber); color: var(--amber-ink); font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.go span { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+.go em { font-style: normal; font-size: 10.5px; font-weight: 600; }
+.go:disabled { background: var(--raise); color: var(--muted); opacity: 1; }
+.panel { background: var(--surface); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.panel input { background: var(--bg); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.hint.top { margin-top: 10px; }
+.trend { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--rose) 16%, var(--bg)); font-size: 13px; }
+.trend b { color: var(--rose); }
+
+.tracks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.song { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.sh { display: flex; gap: 12px; align-items: flex-start; }
+.sh > div { min-width: 0; }
+.len { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 4px; flex: none; width: 36px; }
+.song h3 { font-family: var(--display); font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+.song p { margin: 3px 0 0; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pill { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.pill.w { background: var(--raise); color: var(--fg); }
+.pill.r { background: color-mix(in srgb, var(--amber) 22%, var(--bg)); color: var(--amber); }
+.pill.o { background: color-mix(in srgb, var(--good) 20%, var(--bg)); color: var(--good); }
+.sb { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 48px; }
+.streams { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sm { padding: 8px 12px; border-radius: 10px; background: var(--raise); font-weight: 600; font-size: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; }
+.sm small { font-size: 11px; color: var(--muted); font-weight: 500; }
+.sm.hl { background: var(--amber); color: var(--amber-ink); }
+.sm.hl small { color: var(--amber-ink); opacity: .75; }
+.sm.danger { background: var(--bad); color: #1d0a06; }
+.two { display: grid; grid-template-columns: 1fr 96px; gap: 10px; }
+.two > div { min-width: 0; }
+.err { color: var(--bad); font-weight: 600; }
+.empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
+
+.venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
+.venue.lock { background: transparent; border: 1px dashed var(--line); }
+.venue.lock h3, .venue.lock p { color: var(--muted); }
+.vh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.vh h3 { font-family: var(--display); font-weight: 600; font-size: 18px; }
+.cap { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.venue p { margin: 0; font-size: 13px; color: var(--muted); }
+.req { color: var(--rose) !important; font-weight: 600; }
+.vb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+.stat { display: grid; grid-template-columns: 76px 1fr 32px; gap: 10px; align-items: center; font-size: 14px; }
+.stat b { font-family: var(--mono); text-align: right; }
+.sbar { height: 8px; background: var(--bg); border-radius: 8px; overflow: hidden; }
+.sbar div { height: 100%; background: var(--amber); border-radius: 8px; }
+.ladder { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ladder li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0 9px 18px; border-bottom: 1px solid var(--line); position: relative; color: var(--muted); font-size: 14px; }
+.ladder li::before { content: ""; position: absolute; left: 2px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; border: 1.5px solid var(--line); }
+.ladder li.done { color: var(--fg); } .ladder li.done::before { background: var(--good); border-color: var(--good); }
+.ladder li.cur { color: var(--amber); font-weight: 700; } .ladder li.cur::before { background: var(--amber); border-color: var(--amber); }
+.ladder b { font-family: var(--mono); font-weight: 500; font-size: 12px; }
+.kv > div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.kv span { color: var(--muted); } .kv b { font-family: var(--mono); font-weight: 500; text-align: right; }
+.journal { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.journal li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.journal span { font-family: var(--mono); color: var(--muted); flex: none; width: 38px; font-size: 12px; padding-top: 1px; }
+.reset { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.reset p { margin: 0; width: 100%; font-size: 14px; }
+
+/* Dock */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.dock > * { max-width: 560px; margin-left: auto; margin-right: auto; }
+.next { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; border-radius: 12px; background: var(--rose); color: #23060f; font-weight: 800; font-size: 16px; font-family: var(--display); }
+.next span { font-family: var(--body); font-size: 12px; font-weight: 600; opacity: .8; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+.tabs button { padding: 8px 4px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.tabs button.on { color: var(--fg); background: var(--surface); }
+
+/* Fenêtres */
+.veil { position: fixed; inset: 0; z-index: 20; background: rgba(8, 5, 12, .72); display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet { width: 100%; max-width: 520px; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px; animation: up .22s ease-out; }
+.sheet.win { border: 2px solid var(--amber); }
+.mh { font-family: var(--display); font-weight: 800; font-size: 34px; color: var(--amber); }
+.rl { margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.rl li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.evt { margin: 0; font-size: 16px; line-height: 1.5; }
+.ch { display: flex; flex-direction: column; gap: 8px; }
+@keyframes up { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+#toast { position: fixed; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(132px + env(safe-area-inset-bottom, 0px)); width: min(520px, calc(100% - 32px)); background: var(--fg); color: var(--bg); padding: 11px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+</style>
+</head><body>
+<div id="app"></div>
+<div id="toast" hidden></div>
+<script>
+// ===== MyStar — logique du jeu =====
+const GENRES = ["Pop", "Rock", "Rap", "Chanson française", "Électro"];
+const PAL = [
+  { n: "Inconnu", nf: "Inconnue", f: 0 },
+  { n: "Chanteur de quartier", nf: "Chanteuse de quartier", f: 150 },
+  { n: "Artiste local", f: 1000 },
+  { n: "Révélation", f: 10000 },
+  { n: "Artiste confirmé", nf: "Artiste confirmée", f: 120000 },
+  { n: "Star nationale", f: 600000 },
+  { n: "Star internationale", f: 3000000 }
+];
+const LIVING = [140, 150, 180, 400, 900, 2500, 6000];
+const VENUES = [
+  { id: "open", n: "Scène ouverte", d: "Le jeudi soir, au café du coin", min: 0, type: "free", cap: 25, e: 25 },
+  { id: "bar", n: "Bar musical", d: "Un petit cachet, un public qui discute", min: 150, type: "cachet", cap: 60, cachet: 120, e: 30 },
+  { id: "cafe", n: "Café-concert", d: "150 places, entrée à 10 €", min: 1000, type: "ticket", cap: 150, prix: 10, cout: 200, e: 30 },
+  { id: "club", n: "Club", d: "400 places debout, billet à 18 €", min: 6000, type: "ticket", cap: 400, prix: 18, cout: 1200, e: 35 },
+  { id: "salle", n: "Grande salle", d: "1 500 places, billet à 28 €", min: 30000, type: "ticket", cap: 1500, prix: 28, cout: 7000, e: 35 },
+  { id: "fest", n: "Festival d'été", d: "Cachet fixe de 20 000 €, 15 000 curieux", min: 80000, type: "fest", cap: 15000, cachet: 20000, e: 40 },
+  { id: "arena", n: "Aréna", d: "8 000 places, billet à 48 €", min: 300000, type: "ticket", cap: 8000, prix: 48, cout: 110000, e: 40 },
+  { id: "stade", n: "Stade", d: "40 000 places, billet à 65 €", min: 1500000, type: "ticket", cap: 40000, prix: 65, cout: 700000, e: 45 }
+];
+const HOME = [
+  { n: "Micro USB et ordi portable", prod: 25, prix: 0 },
+  { n: "Carte son et bon micro", prod: 40, prix: 350 },
+  { n: "Cabine isolée et monitoring", prod: 55, prix: 1500 },
+  { n: "Home studio complet", prod: 70, prix: 6000 }
+];
+const W1 = ["Les", "Mon", "Ton", "Nos", "Ce", "Un", "Sous la", "Après la", "Toute la", "Encore"];
+const W2 = ["nuit", "pluie", "lumière", "ville", "silence", "dernier train", "néons", "été", "vertige", "cœur", "promesse", "route", "matin", "colère", "fièvre"];
+const W3 = ["", "", " d'hiver", " de Liège", " sans toi", " qui brûle", " à l'envers", " en or", " de verre", " du nord", " qui tombe"];
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const ri = (a, b) => Math.floor(rnd(a, b + 1));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function newState(o) {
+  const age = o.age, older = Math.max(0, age - 20);
+  return {
+    v: 2, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
+    songs: [], nextId: 1, albums: 0, home: 0, label: false,
+    flags: {}, trend: ri(0, 4), trendUntil: 9,
+    log: [], yearIncome: 0, quarterStreams: 0, boostNext: 1,
+    active: false, vids: 0, teleCd: 0, maxPal: 0, won: false,
+    totalEarned: 0, weekIn: 0, weekOut: 0, pending: null, report: null
+  };
+}
+
+function sat(S) { return 1 / (1 + S.fans / 250000); }
+function palier(f) { let p = 0; PAL.forEach((x, i) => { if (f >= x.f) p = i; }); return p; }
+function log(S, t) { S.log.unshift({ w: S.week, t }); if (S.log.length > 60) S.log.length = 60; }
+function earn(S, x) { S.money += x; S.yearIncome += x; S.totalEarned += x; S.weekIn += x; }
+function spend(S, x) { S.money -= x; S.weekOut += x; }
+function ageMult(S) { return S.age <= 22 ? 1.2 : S.age <= 29 ? 1 : S.age <= 35 ? 0.85 : 0.7; }
+function gain(stat, k, S) { return Math.max(0.4, (100 - stat) / k) * (S ? ageMult(S) : 1); }
+function palName(S, i) { return S.sexe === "f" && PAL[i].nf ? PAL[i].nf : PAL[i].n; }
+function migrate(S) { if (S && S.v === 1) { Object.assign(S, { v: 2, prenom: S.name, sexe: "h", age: 25 }); } return S && S.v === 2 ? S : null; }
+function titleGen() { return (pick(W1) + " " + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
+
+// ----- Actions -----
+const ACTIONS = {
+  job: { e: 30, cost: 0, cond: S => palier(S.fans) < 3, run: S => { earn(S, 150); return "Une semaine de shifts au resto : +150 €."; } },
+  dedicaces: { e: 25, cost: 0, cond: S => palier(S.fans) >= 3, run: S => { const g = Math.round(300 + S.fans * 0.01); earn(S, g); S.active = true; return `Séance de dédicaces et merch : +${fmt(g)} €.`; } },
+  chant: { e: 20, cost: 60, run: S => { const g = gain(S.voix, 15, S); S.voix = clamp(S.voix + g, 0, 100); return `Cours de chant : voix +${g.toFixed(1)}.`; } },
+  chantPro: { e: 20, cost: 500, cond: S => palier(S.fans) >= 3, run: S => { const g = gain(S.voix, 7, S); S.voix = clamp(S.voix + g, 0, 100); return `Coach vocal : voix +${g.toFixed(1)}.`; } },
+  ecrit: { e: 20, cost: 40, run: S => { const g = gain(S.ecriture, 15, S); S.ecriture = clamp(S.ecriture + g, 0, 100); return `Atelier d'écriture : écriture +${g.toFixed(1)}.`; } },
+  ecritPro: { e: 20, cost: 600, cond: S => palier(S.fans) >= 3, run: S => { const g = gain(S.ecriture, 7, S); S.ecriture = clamp(S.ecriture + g, 0, 100); return `Session avec un parolier pro : écriture +${g.toFixed(1)}.`; } },
+  repet: { e: 15, cost: 0, run: S => { const g = gain(S.scene, 25, S); S.scene = clamp(S.scene + g, 0, 100); return `Répétition au garage : scène +${g.toFixed(1)}.`; } },
+  scenePro: { e: 20, cost: 400, cond: S => palier(S.fans) >= 3, run: S => { const g = gain(S.scene, 8, S); S.scene = clamp(S.scene + g, 0, 100); return `Coach scénique : scène +${g.toFixed(1)}.`; } },
+  video: { e: 15, cost: 0, run: S => {
+    let g = rnd(6, 18) * (0.6 + S.voix / 60) + S.fans * 0.02 * (S.voix / 50) * sat(S);
+    g = g / (1 + S.vids * 0.6);
+    let viral = Math.random() < 0.04;
+    if (viral) g = g * 8 + 50;
+    g = Math.round(g); S.fans += g; S.vids++; S.active = true;
+    return viral ? `Ta vidéo devient virale : +${fmt(g)} fans !` : `Vidéo postée : +${fmt(g)} fans.`;
+  } },
+  tele: { e: 30, cost: 0, cond: S => palier(S.fans) >= 3, ready: S => S.teleCd <= 0, run: S => {
+    const g = Math.round(S.fans * 0.04 * (0.5 + S.voix / 100) * sat(S) + 500); S.fans += g; S.teleCd = 4; S.active = true;
+    return `Passage télé en prime time : +${fmt(g)} fans.`;
+  } }
+};
+
+function canDo(S, id) {
+  const a = ACTIONS[id];
+  if (a.cond && !a.cond(S)) return "hidden";
+  if (a.ready && !a.ready(S)) return "Disponible dans " + S.teleCd + " sem.";
+  if (S.energy < a.e) return "Pas assez d'énergie";
+  if (S.money < a.cost) return "Pas assez d'argent";
+  return "";
+}
+function doAction(S, id) {
+  if (canDo(S, id)) return null;
+  const a = ACTIONS[id];
+  S.energy -= a.e; if (a.cost) spend(S, a.cost);
+  const m = a.run(S); log(S, m); return m;
+}
+
+// ----- Chansons -----
+const E_WRITE = 30, E_REC = 20, E_REL = 10, E_ALBUM = 40;
+function writeSong(S, title, genre) {
+  if (S.energy < E_WRITE) return null;
+  S.energy -= E_WRITE;
+  const off = genre !== S.genre ? 10 : 0;
+  const q = Math.round(clamp(S.ecriture * 0.7 + rnd(0, 35) - off, 5, 100));
+  const s = { id: S.nextId++, title: (title || "").trim() || titleGen(), genre, q, prod: null, note: null, rel: false, w0: 0, base: 0, last: 0, total: 0, alb: false, len: ri(150, 245) };
+  S.songs.unshift(s);
+  const m = `Nouvelle chanson écrite : « ${s.title} » (qualité ${q}).`; log(S, m); return m;
+}
+function studios(S) {
+  return [
+    { id: "home", n: HOME[S.home].n, prod: HOME[S.home].prod, prix: 0, ok: true },
+    { id: "local", n: "Studio local", prod: 62, prix: 400, ok: true },
+    { id: "grand", n: "Grand studio", prod: 88, prix: S.label ? 0 : 3000, ok: palier(S.fans) >= 3 }
+  ];
+}
+function recordSong(S, id, st) {
+  const s = S.songs.find(x => x.id === id), o = studios(S).find(x => x.id === st);
+  if (!s || s.prod !== null || !o.ok || S.energy < E_REC || S.money < o.prix) return null;
+  S.energy -= E_REC; if (o.prix) spend(S, o.prix);
+  s.prod = Math.round(clamp(o.prod + rnd(-6, 6), 5, 100));
+  s.note = Math.round(s.q * 0.45 + s.prod * 0.25 + S.voix * 0.30);
+  const m = `« ${s.title} » enregistrée (${o.n}) : note finale ${s.note}/100.`; log(S, m); return m;
+}
+function streamBase(S, s, mult) {
+  const trend = GENRES[S.trend] === s.genre ? 1.4 : 1;
+  return (S.fans * 1.0 + 250) * Math.pow(s.note / 60, 2.2) * trend * (S.label ? 2.5 : 1) * mult;
+}
+function releaseSong(S, id) {
+  const s = S.songs.find(x => x.id === id);
+  if (!s || s.note === null || s.rel || S.energy < E_REL) return null;
+  S.energy -= E_REL; S.active = true;
+  let mult = S.boostNext; S.boostNext = 1;
+  let viral = s.note >= 55 && Math.random() < 0.05;
+  if (viral) mult *= 6;
+  s.rel = true; s.w0 = S.week; s.base = streamBase(S, s, mult);
+  const m = viral ? `« ${s.title} » explose sur les plateformes dès sa sortie !` : `Single « ${s.title} » sorti.`;
+  log(S, m); return m;
+}
+function albumPool(S) { return S.songs.filter(s => s.note !== null && !s.alb); }
+const PROMO = [{ n: "Sans promo", prix: 0, m: 1 }, { n: "Promo radio", prix: 2500, m: 1.5 }, { n: "Grosse campagne", prix: 15000, m: 2.2 }];
+function releaseAlbum(S, promo, name) {
+  const pool = albumPool(S).slice(0, 10), p = PROMO[promo];
+  if (pool.length < 8 || S.energy < E_ALBUM || S.money < p.prix) return null;
+  S.energy -= E_ALBUM; if (p.prix) spend(S, p.prix); S.active = true; S.albums++;
+  const avg = pool.reduce((a, s) => a + s.note, 0) / pool.length;
+  const k = Math.pow(avg / 60, 2);
+  pool.forEach(s => { s.alb = true; s.rel = true; s.w0 = S.week; s.base = streamBase(S, s, 0.6 * p.m); });
+  const fg = Math.round(S.fans * 0.08 * k * p.m * sat(S) + 100);
+  const sales = Math.round(S.fans * 0.015 * k * p.m * 13 * (S.label ? 0.3 : 1));
+  S.fans += fg; earn(S, sales);
+  const t = (name || "").trim() || pool[0].title;
+  const m = `Album « ${t} » sorti (${pool.length} titres, note moyenne ${Math.round(avg)}) : +${fmt(fg)} fans, ventes ${fmt(sales)} €.`;
+  log(S, m); return m;
+}
+function buyHome(S) {
+  const n = HOME[S.home + 1]; if (!n || S.money < n.prix) return null;
+  spend(S, n.prix); S.home++; const m = `Matériel acheté : ${n.n}.`; log(S, m); return m;
+}
+
+// ----- Concerts -----
+function venueOk(S, v) { return S.fans >= v.min; }
+function concert(S, vid, dates) {
+  const v = VENUES.find(x => x.id === vid); dates = dates || 1;
+  const e = dates > 1 ? 70 : v.e;
+  if (!venueOk(S, v) || S.energy < e) return null;
+  if (v.cout && S.money < v.cout * dates) return null;
+  S.energy -= e; S.active = true;
+  let aud = 0, fg = 0, net = 0;
+  for (let i = 0; i < dates; i++) {
+    let a, f, r = 0;
+    if (v.type === "ticket") {
+      a = Math.round(Math.min(v.cap, S.fans * 0.06 * (0.6 + S.scene / 100) * rnd(0.85, 1.1)));
+      f = a * (0.15 + S.scene / 300); r = a * v.prix - v.cout;
+    } else {
+      a = Math.round(v.cap * rnd(0.6, 1));
+      f = a * (S.voix + S.scene) / 200 * (v.type === "fest" ? 0.25 : 1.5);
+      r = v.cachet || 0;
+    }
+    aud += a; fg += f; net += r;
+  }
+  fg = Math.round(fg); S.fans += fg;
+  if (net >= 0) earn(S, net); else spend(S, -net);
+  const sg = gain(S.scene, 25, S) * Math.min(dates, 2); S.scene = clamp(S.scene + sg, 0, 100);
+  const what = dates > 1 ? `Tournée de ${dates} dates (${v.n})` : v.n;
+  const m = `${what} : ${fmt(aud)} spectateurs, +${fmt(fg)} fans, ${net >= 0 ? "+" : "−"}${fmt(Math.abs(net))} €.`;
+  log(S, m); return m;
+}
+
+// ----- Événements -----
+const EVENTS = [
+  { w: 3, cond: S => S.fans < 2000000, run: S => { const g = Math.round(30 + S.fans * 0.05); S.fans += g; return { t: `Un compte influent a repartagé une de tes vidéos : +${fmt(g)} fans.` }; } },
+  { w: 2, run: S => { const c = palier(S.fans) >= 4 ? 1500 : 200; spend(S, c); return { t: `Ton ordinateur portable a lâché. Réparation : ${fmt(c)} €.` }; } },
+  { w: 2, run: S => { S.energy = Math.max(0, S.energy - 30); return { t: "Un gros rhume t'a cloué au lit : −30 énergie." }; } },
+  { w: 2, cond: S => S.boostNext === 1, run: S => { S.boostNext = 1.5; return { t: "Un blog musical t'a dans le viseur : ton prochain single aura +50 % d'écoutes." }; } },
+  { w: 2, cond: S => palier(S.fans) <= 2 && !S.flags.tele, run: S => { S.flags.tele = true; return { t: "Les auditions du télécrochet « La Voix d'Or » passent près de chez toi. Tu tentes ta chance ?", choices: [
+    { l: "Passer l'audition (−40 énergie)", f: S => { S.energy = Math.max(0, S.energy - 40); if (S.voix >= 35 && Math.random() < 0.3 + S.voix / 150) { const g = Math.round(800 + S.voix * 40); S.fans += g; return `Le jury s'est levé. Ta prestation tourne partout : +${fmt(g)} fans.`; } return "Recalé dès la première minute. La voix n'est pas encore prête."; } },
+    { l: "Pas cette fois", f: () => "Tu laisses passer les auditions." }] }; } },
+  { w: 2, cond: S => palier(S.fans) <= 2, run: S => ({ t: "Des amis d'amis cherchent un chanteur pour leur mariage samedi.", choices: [
+    { l: "Accepter (−25 énergie, +250 €)", f: S => { S.energy = Math.max(0, S.energy - 25); earn(S, 250); S.fans += 10; return "Soirée réussie : +250 € et 10 nouveaux fans."; } },
+    { l: "Refuser", f: () => "Tu gardes ton samedi." }] }) },
+  { w: 2, cond: S => palier(S.fans) >= 4 && S.boostNext === 1, run: S => { S.boostNext = 2; return { t: "Une grosse pointure te propose un duo : ton prochain single aura deux fois plus d'écoutes." }; } },
+  { w: 1, cond: S => palier(S.fans) >= 4, run: S => { const g = Math.round(S.fans * 0.02); earn(S, g); return { t: `Une marque achète une de tes chansons pour sa pub : +${fmt(g)} €.` }; } },
+  { w: 2, cond: S => palier(S.fans) >= 2, run: S => { const g = Math.round(S.fans * 0.03); S.fans += g; return { t: `Ton fan-club s'organise en ligne : +${fmt(g)} fans.` }; } }
+];
+function rollEvent(S) {
+  const list = EVENTS.filter(e => !e.cond || e.cond(S));
+  let tot = list.reduce((a, e) => a + e.w, 0), r = Math.random() * tot;
+  for (const e of list) { r -= e.w; if (r <= 0) return e.run(S); }
+  return null;
+}
+
+// ----- Fin de semaine -----
+function endWeek(S) {
+  const lines = []; const f0 = S.fans; S.weekIn = 0; S.weekOut = 0;
+  // écoutes
+  let st = 0, rev = 0, sf = 0;
+  S.songs.forEach(s => {
+    if (!s.rel) { s.last = 0; return; }
+    const a = S.week - s.w0;
+    let n = Math.round(s.base * Math.pow(0.8, a) + (S.fans * 0.002 * s.note / 60));
+    s.last = n; s.total += n; st += n;
+    rev += n * (S.label ? 0.0012 : 0.003);
+    sf += n * 0.012 * (s.note / 70) * sat(S);
+  });
+  if (st) {
+    S.fans += Math.round(sf); rev = Math.round(rev * 100) / 100; earn(S, rev); S.quarterStreams += rev;
+    lines.push(`${fmt(st)} écoutes : +${fmtc(rev)} €, +${fmt(Math.round(sf))} fans`);
+  }
+  // discrétion
+  if (!S.active && S.fans > 50) { const l = Math.round(S.fans * 0.015); S.fans -= l; lines.push(`Semaine discrète : −${fmt(l)} fans`); }
+  // frais de vie
+  const p = palier(S.fans), lv = LIVING[p]; spend(S, lv);
+  lines.push(`Loyer, courses et équipe : −${fmt(lv)} €`);
+  // SABAM
+  if (S.week % 13 === 0 && S.quarterStreams > 0) {
+    const d = Math.round(S.quarterStreams * 0.6 + S.fans * 0.004); earn(S, d); S.quarterStreams = 0;
+    lines.push(`Droits d'auteur du trimestre (SABAM) : +${fmt(d)} €`); log(S, `Droits d'auteur SABAM versés : ${fmt(d)} €.`);
+  }
+  // impôt
+  if (S.week % 52 === 0) {
+    const tax = Math.max(0, Math.round((S.yearIncome - 10000) * 0.33));
+    if (tax > 0) { spend(S, tax); lines.push(`Avertissement-extrait de rôle (impôt de l'année) : −${fmt(tax)} €`); log(S, `Impôt sur les revenus de l'année : ${fmt(tax)} €.`); }
+    else lines.push("Avertissement-extrait de rôle : rien à payer cette année");
+    S.yearIncome = 0;
+  }
+  // anniversaire
+  if (S.week % 52 === 0) { S.age++; lines.push(`${S.prenom} fête ses ${S.age} ans`); }
+  // tendance
+  let trendMsg = null;
+  if (S.week >= S.trendUntil) { let t; do { t = ri(0, 4); } while (t === S.trend); S.trend = t; S.trendUntil = S.week + 8; trendMsg = `Nouvelle tendance : le ${GENRES[t]} cartonne (+40 % d'écoutes).`; lines.push(trendMsg); }
+  // reset semaine
+  S.energy = Math.min(100, S.energy + 60); S.active = false; S.vids = 0; if (S.teleCd > 0) S.teleCd--;
+  S.week++;
+  // palier
+  let pend = null; const np = palier(S.fans);
+  if (np > S.maxPal) {
+    S.maxPal = np; lines.push(`Nouveau palier : ${palName(S, np)} !`); log(S, `Palier atteint : ${palName(S, np)}.`);
+    if (np >= 3 && !S.flags.labelOffered) {
+      S.flags.labelOffered = true; const adv = Math.round(S.fans * 1.5 + 10000);
+      pend = { t: `Le label « Onde Nord Records » veut te signer. Avance de ${fmt(adv)} €, promo massive (écoutes ×2,5) et grand studio gratuit. En échange, tu ne touches plus que 40 % des écoutes et 30 % des ventes d'albums.`, choices: [
+        { l: `Signer (+${fmt(adv)} €)`, f: S => { S.label = true; earn(S, adv); return "Contrat signé avec Onde Nord Records."; } },
+        { l: "Rester indépendant", f: () => "Tu restes indépendant. Tout ce que tu gagnes est à toi." }] };
+    }
+    if (np === 6 && !S.won) { S.won = true; pend = { t: `${S.name} est désormais une star internationale. Tu as réussi en ${S.week - 1} semaines. Tu peux continuer ta carrière.`, win: true, choices: [{ l: "Continuer", f: () => "La carrière continue." }] }; }
+  }
+  // événement
+  if (!pend && Math.random() < 0.28) {
+    const ev = rollEvent(S);
+    if (ev) { if (ev.choices) pend = ev; else { lines.push(ev.t); log(S, ev.t); } }
+  }
+  if (S.money < 0) lines.push("Compte dans le rouge : va bosser ou joue des concerts.");
+  S.report = { week: S.week - 1, lines, df: S.fans - f0, money: S.money };
+  S.pending = pend;
+  return S.report;
+}
+
+function fmt(n) { return Math.round(n).toLocaleString("fr-BE"); }
+function fmtc(n) { return n.toLocaleString("fr-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// ===== MyStar — interface =====
+const KEY = "mystar-v1";
+let S = null, tab = "agenda", modal = null, confirmReset = false, setup = { sexe: "h", prenom: "", name: "", age: "20", genre: 0 }, writeGenre = null, albumPromo = 0;
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function save() { try { const c = Object.assign({}, S, { pending: null }); localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {} }
+function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+
+function toast(m) {
+  if (!m) return; const t = $("#toast"); t.textContent = m; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+function vu(e) {
+  let h = ""; for (let i = 0; i < 10; i++) { const on = e >= (i + 1) * 10 - 5; h += `<i class="${on ? (i >= 8 ? "hot" : i >= 6 ? "warm" : "on") : ""}"></i>`; }
+  return `<span class="vu" aria-label="Énergie ${e} sur 100">${h}</span>`;
+}
+
+// ----- Écran de départ -----
+function ageVal() { return parseInt(setup.age, 10); }
+function ageHint() {
+  const a = ageVal();
+  if (!(a >= 16 && a <= 45)) return "Âge entre 16 et 45 ans.";
+  if (a <= 22) return "Jeune : tu pars de plus bas, mais tu progresses 20 % plus vite.";
+  if (a <= 29) return "Un bon équilibre entre expérience et vitesse de progression.";
+  if (a <= 35) return "Plus de vécu au départ (surtout à l'écriture), progression un peu plus lente.";
+  return "Beaucoup de vécu au départ, mais tu progresses nettement plus lentement.";
+}
+function renderSetup() {
+  $("#app").innerHTML = `
+  <section class="setup">
+    <p class="eyebrow">MyStar · Une carrière de chanteur</p>
+    <h1 class="big">Tout le monde<br>commence quelque part.</h1>
+    <p class="lead">Tu chantes sous la douche, tu as un petit job et zéro fan. Écris tes chansons, enregistre-les, monte sur scène et grimpe jusqu'aux stades.</p>
+    <p class="lbl">Tu joues</p>
+    <div class="chips">${[["h", "Un homme"], ["f", "Une femme"]].map(([k, l]) => `<button class="chip ${setup.sexe === k ? "sel" : ""}" data-sexe="${k}">${l}</button>`).join("")}</div>
+    <div class="two">
+      <div><label class="lbl" for="prenom">Prénom</label><input id="prenom" data-f="prenom" maxlength="20" placeholder="${setup.sexe === "f" ? "Ex. Léa" : "Ex. Vincent"}" autocomplete="off" value="${esc(setup.prenom)}"></div>
+      <div class="age"><label class="lbl" for="age">Âge</label><input id="age" data-f="age" type="number" inputmode="numeric" min="16" max="45" value="${esc(setup.age)}"></div>
+    </div>
+    <label class="lbl" for="artist">Nom de scène</label>
+    <input id="artist" data-f="name" maxlength="28" placeholder="${setup.sexe === "f" ? "Ex. Lya Nova" : "Ex. Vince Nova"}" autocomplete="off" value="${esc(setup.name)}">
+    <p class="hint">${ageHint()}</p>
+    <p class="lbl">Style de musique</p>
+    <div class="chips">${GENRES.map((g, i) => `<button class="chip ${i === setup.genre ? "sel" : ""}" data-genre="${i}">${g}</button>`).join("")}</div>
+    <p class="hint err" id="serr" hidden></p>
+    <button class="cta" id="start">Commencer la carrière</button>
+  </section>`;
+}
+
+// ----- Jeu -----
+function render() {
+  if (!S) return renderSetup();
+  const p = palier(S.fans), next = PAL[p + 1];
+  const prog = next ? clamp((S.fans - PAL[p].f) / (next.f - PAL[p].f), 0, 1) : 1;
+  $("#app").innerHTML = `
+  <header class="top">
+    <div class="r1">
+      <div class="who"><p class="eyebrow">${esc(S.prenom)}, ${S.age} ans · ${esc(S.genre)} · Semaine ${S.week}</p><h1>${esc(S.name)}</h1></div>
+      <div class="tier"><span>${palName(S, p)}</span></div>
+    </div>
+    <div class="meters">
+      <div class="m"><span class="k">Argent</span><b class="${S.money < 0 ? "neg" : ""}">${fmt(S.money)} €</b></div>
+      <div class="m"><span class="k">Fans</span><b>${fmt(S.fans)}</b></div>
+      <div class="m"><span class="k">Énergie ${S.energy}</span>${vu(S.energy)}</div>
+    </div>
+    <div class="prog"><div style="width:${(prog * 100).toFixed(1)}%"></div></div>
+    <p class="nexttier">${next ? `Prochain palier : ${palName(S, p + 1)} à ${fmt(next.f)} fans` : "Sommet atteint"}</p>
+  </header>
+  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : viewCarriere()}</main>
+  <nav class="dock">
+    <button class="next" data-do="week">Semaine suivante<span>+60 énergie</span></button>
+    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+  </nav>
+  ${modal ? viewModal() : ""}`;
+}
+
+function card(id, title, desc) {
+  const a = ACTIONS[id], why = canDo(S, id);
+  if (why === "hidden") return "";
+  return `<div class="act"><div class="txt"><h3>${title}</h3><p>${desc}</p></div>
+  <button class="go" data-act="${id}" ${why ? "disabled" : ""}><span>${a.e} én.${a.cost ? ` · ${fmt(a.cost)} €` : ""}</span>${why ? `<em>${why}</em>` : ""}</button></div>`;
+}
+function viewAgenda() {
+  return `
+  <h2>Gagner sa vie</h2>
+  ${card("job", "Petit job au resto", "Une semaine de service : +150 €. Disparaît quand tu deviens une Révélation.")}
+  ${card("dedicaces", "Dédicaces et merch", "Tu signes des pochettes et vends des t-shirts.")}
+  <h2>Progresser</h2>
+  ${card("chant", "Cours de chant", `Voix ${Math.round(S.voix)}/100. Plus tu chantes bien, plus tes chansons et vidéos marchent.`)}
+  ${card("chantPro", "Coach vocal pro", "Progression deux fois plus rapide.")}
+  ${card("ecrit", "Atelier d'écriture", `Écriture ${Math.round(S.ecriture)}/100. Fait monter la qualité de tes chansons.`)}
+  ${card("ecritPro", "Parolier professionnel", "Progression deux fois plus rapide.")}
+  ${card("repet", "Répéter au garage", `Scène ${Math.round(S.scene)}/100. Remplit mieux les salles. Gratuit.`)}
+  ${card("scenePro", "Coach scénique", "Progression trois fois plus rapide.")}
+  <h2>Se faire connaître</h2>
+  ${card("video", "Poster une vidéo", "Une reprise filmée dans ta chambre. Les vidéos rapportent moins si tu en postes plusieurs la même semaine.")}
+  ${card("tele", "Passage télé", "Gros coup de projecteur, une fois toutes les 4 semaines.")}`;
+}
+function statusOf(s) {
+  if (s.prod === null) return `<span class="pill w">Écrite · qualité ${s.q}</span>`;
+  if (!s.rel) return `<span class="pill r">Enregistrée · note ${s.note}</span>`;
+  return `<span class="pill o">${s.alb ? "Album" : "Single"} · note ${s.note}</span>`;
+}
+function viewStudio() {
+  const g = writeGenre === null ? GENRES.indexOf(S.genre) : writeGenre;
+  const nh = HOME[S.home + 1], pool = albumPool(S);
+  const songs = S.songs.length ? S.songs.map(s => {
+    let btns = "";
+    if (s.prod === null) btns = studios(S).filter(o => o.ok).map(o => `<button class="sm" data-rec="${s.id}" data-st="${o.id}" ${S.energy < E_REC || S.money < o.prix ? "disabled" : ""}>${o.id === "home" ? "À la maison" : o.n}<small>${E_REC} én.${o.prix ? " · " + fmt(o.prix) + " €" : ""} · son ${o.prod}</small></button>`).join("");
+    else if (!s.rel) btns = `<button class="sm hl" data-rel="${s.id}" ${S.energy < E_REL ? "disabled" : ""}>Sortir en single<small>${E_REL} én.</small></button>`;
+    else btns = `<p class="streams">${fmt(s.last)} écoutes cette semaine · ${fmt(s.total)} au total</p>`;
+    return `<li class="song"><div class="sh"><span class="len">${Math.floor(s.len / 60)}:${String(s.len % 60).padStart(2, "0")}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.genre)} ${statusOf(s)}</p></div></div><div class="sb">${btns}</div></li>`;
+  }).join("") : `<li class="empty">Aucune chanson pour l'instant. Écris la première juste au-dessus.</li>`;
+  return `
+  <div class="trend">Tendance du moment : <b>${GENRES[S.trend]}</b> · +40 % d'écoutes jusqu'à la semaine ${S.trendUntil}</div>
+  <h2>Écrire une chanson</h2>
+  <div class="panel">
+    <label class="lbl" for="stitle">Titre (laisse vide pour un titre au hasard)</label>
+    <input id="stitle" maxlength="40" placeholder="Titre de la chanson" autocomplete="off">
+    <div class="chips">${GENRES.map((x, i) => `<button class="chip ${i === g ? "sel" : ""}" data-wg="${i}">${x}</button>`).join("")}</div>
+    <p class="hint">${GENRES[g] !== S.genre ? "Hors de ton style : −10 de qualité." : "Ton style : aucun malus."} Qualité attendue autour de ${Math.round(S.ecriture * 0.7 + 17)}.</p>
+    <button class="cta" data-do="write" ${S.energy < E_WRITE ? "disabled" : ""}>Écrire · ${E_WRITE} énergie</button>
+  </div>
+  <h2>Album</h2>
+  <div class="panel">
+    <p class="hint">${pool.length}/8 chansons enregistrées disponibles. Un album regroupe 8 à 10 titres (même déjà sortis en single), relance leurs écoutes et rapporte des ventes.</p>
+    <div class="chips">${PROMO.map((x, i) => `<button class="chip ${i === albumPromo ? "sel" : ""}" data-promo="${i}">${x.n}${x.prix ? " · " + fmt(x.prix) + " €" : ""}</button>`).join("")}</div>
+    <input id="atitle" maxlength="40" placeholder="Titre de l'album (sinon, le 1er titre)" autocomplete="off">
+    <button class="cta" data-do="album" ${pool.length < 8 || S.energy < E_ALBUM || S.money < PROMO[albumPromo].prix ? "disabled" : ""}>Sortir l'album · ${E_ALBUM} énergie</button>
+  </div>
+  <h2>Tes chansons</h2>
+  <ul class="tracks">${songs}</ul>
+  <h2>Matériel à la maison</h2>
+  <div class="act"><div class="txt"><h3>${HOME[S.home].n}</h3><p>${nh ? `Prochain : ${nh.n}, son ${nh.prod} au lieu de ${HOME[S.home].prod}.` : "Ton home studio est au maximum."}</p></div>
+  ${nh ? `<button class="go" data-do="home" ${S.money < nh.prix ? "disabled" : ""}><span>${fmt(nh.prix)} €</span></button>` : ""}</div>`;
+}
+function viewScene() {
+  const p = palier(S.fans);
+  return `<p class="hint top">Chaque concert fait progresser ta présence sur scène. Les salles payantes se remplissent selon tes fans et ton niveau de scène, et la location se paie d'avance.</p>
+  ${VENUES.map(v => {
+    const ok = venueOk(S, v);
+    const money = v.type === "ticket" ? `Location ${fmt(v.cout)} €` : v.cachet ? `Cachet ${fmt(v.cachet)} €` : "Pas payé";
+    const can = ok && S.energy >= v.e && (!v.cout || S.money >= v.cout);
+    const tour = ok && p >= 3 && v.type === "ticket" && v.min >= 6000;
+    const canTour = tour && S.energy >= 70 && S.money >= v.cout * 4;
+    return `<div class="venue ${ok ? "" : "lock"}"><div class="vh"><h3>${v.n}</h3><span class="cap">${fmt(v.cap)} pl.</span></div>
+    <p>${v.d}</p>
+    ${ok ? `<div class="vb"><button class="sm hl" data-gig="${v.id}" ${can ? "" : "disabled"}>Jouer<small>${v.e} én. · ${money}</small></button>
+    ${tour ? `<button class="sm" data-tour="${v.id}" ${canTour ? "" : "disabled"}>Tournée de 4 dates<small>70 én. · ${fmt(v.cout * 4)} €</small></button>` : ""}</div>`
+      : `<p class="req">À partir de ${fmt(v.min)} fans</p>`}</div>`;
+  }).join("")}`;
+}
+function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
+function viewCarriere() {
+  const p = palier(S.fans);
+  const rel = S.songs.filter(s => s.rel).length;
+  return `
+  <h2>Ton niveau</h2>
+  <div class="panel">${bar("Voix", S.voix)}${bar("Écriture", S.ecriture)}${bar("Scène", S.scene)}</div>
+  <h2>Paliers</h2>
+  <ol class="ladder">${PAL.map((x, i) => `<li class="${i < p ? "done" : i === p ? "cur" : ""}"><span>${palName(S, i)}</span><b>${fmt(x.f)} fans</b></li>`).join("")}</ol>
+  <h2>Bilan</h2>
+  <div class="panel kv">
+    <div><span>Identité</span><b>${esc(S.prenom)}, ${S.age} ans, ${S.sexe === "f" ? "chanteuse" : "chanteur"}</b></div>
+    <div><span>Chansons sorties</span><b>${rel}</b></div>
+    <div><span>Albums</span><b>${S.albums}</b></div>
+    <div><span>Contrat</span><b>${S.label ? "Onde Nord Records" : "Indépendant"}</b></div>
+    <div><span>Revenus de l'année (imposables)</span><b>${fmt(S.yearIncome)} €</b></div>
+    <div><span>Prochain impôt</span><b>semaine ${Math.ceil(S.week / 52) * 52}</b></div>
+    <div><span>Frais de vie par semaine</span><b>${fmt(LIVING[p])} €</b></div>
+    <div><span>Gagné depuis le début</span><b>${fmt(S.totalEarned)} €</b></div>
+  </div>
+  <h2>Journal</h2>
+  <ul class="journal">${S.log.slice(0, 30).map(l => `<li><span>S${l.w}</span>${esc(l.t)}</li>`).join("") || "<li>Rien encore.</li>"}</ul>
+  <div class="reset">${confirmReset ? `<p>Effacer cette carrière et recommencer à zéro ?</p><button class="sm danger" data-do="reset2">Oui, tout effacer</button><button class="sm" data-do="reset0">Annuler</button>` : `<button class="sm" data-do="reset1">Recommencer une carrière</button>`}</div>`;
+}
+function viewModal() {
+  if (modal.type === "report") {
+    const r = modal.r;
+    return `<div class="veil"><div class="sheet"><p class="eyebrow">Fin de la semaine ${r.week}</p>
+    <h2 class="mh">${r.df >= 0 ? "+" : "−"}${fmt(Math.abs(r.df))} fans</h2>
+    <ul class="rl">${r.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+    <button class="cta" data-do="close">${S.pending ? "Suite" : "Attaquer la semaine " + S.week}</button></div></div>`;
+  }
+  const ev = modal.ev;
+  return `<div class="veil"><div class="sheet ${ev.win ? "win" : ""}"><p class="eyebrow">${ev.win ? "Victoire" : "Imprévu"}</p><p class="evt">${esc(ev.t)}</p>
+  <div class="ch">${ev.choices.map((c, i) => `<button class="cta ${i ? "ghost" : ""}" data-choice="${i}">${esc(c.l)}</button>`).join("")}</div></div></div>`;
+}
+
+// ----- Événements de l'interface -----
+function after(m) { if (m) toast(m); save(); render(); }
+document.addEventListener("input", e => {
+  const f = e.target.dataset && e.target.dataset.f; if (!f || S) return;
+  setup[f] = e.target.value;
+  if (f === "age") { const h = document.querySelector(".setup .hint"); if (h) h.textContent = ageHint(); }
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  const d = b.dataset;
+  if (d.genre !== undefined) { setup.genre = +d.genre; return renderSetup(); }
+  if (d.sexe) { setup.sexe = d.sexe; return renderSetup(); }
+  if (b.id === "start") {
+    const a = ageVal(), pr = setup.prenom.trim(), n = setup.name.trim(), err = $("#serr");
+    const msg = !pr ? "Indique un prénom." : !n ? "Indique un nom de scène." : !(a >= 16 && a <= 45) ? "L'âge doit être entre 16 et 45 ans." : "";
+    if (msg) { err.textContent = msg; err.hidden = false; return; }
+    S = newState({ prenom: pr, name: n, sexe: setup.sexe, age: a, genre: GENRES[setup.genre] });
+    log(S, `${pr}, ${a} ans, se lance dans la musique sous le nom de ${n}.`); tab = "agenda"; return after();
+  }
+  if (d.tab) { tab = d.tab; confirmReset = false; render(); window.scrollTo(0, 0); return; }
+  if (d.act) return after(doAction(S, d.act));
+  if (d.wg !== undefined) { const t = $("#stitle").value; writeGenre = +d.wg; render(); $("#stitle").value = t; return; }
+  if (d.promo !== undefined) { const t = $("#atitle").value; albumPromo = +d.promo; render(); $("#atitle").value = t; return; }
+  if (d.rec) return after(recordSong(S, +d.rec, d.st));
+  if (d.rel) return after(releaseSong(S, +d.rel));
+  if (d.gig) return after(concert(S, d.gig, 1));
+  if (d.tour) return after(concert(S, d.tour, 4));
+  if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; const m = c.f(S); log(S, m); S.pending = null; modal = null; return after(m); }
+  switch (d.do) {
+    case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
+    case "close": modal = S.pending ? { type: "ev", ev: S.pending } : null; save(); return render();
+    case "write": { const g = writeGenre === null ? S.genre : GENRES[writeGenre]; return after(writeSong(S, $("#stitle").value, g)); }
+    case "album": return after(releaseAlbum(S, albumPromo, $("#atitle").value));
+    case "home": return after(buyHome(S));
+    case "reset1": confirmReset = true; return render();
+    case "reset0": confirmReset = false; return render();
+    case "reset2": try { localStorage.removeItem(KEY); } catch (e) {} S = null; modal = null; confirmReset = false; return render();
+  }
+});
+
+function start(data) {
+  S = migrate((data && data.S) || load());
+  if (S) S.pending = null;
+  render();
+}
+window.claude?.hot?.snapshot?.(() => ({ S: S ? Object.assign({}, S, { pending: null }) : null }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body></html>
