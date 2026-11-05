@@ -170,6 +170,7 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .cs.on { background: var(--amber); } .cs.fx { background: var(--rose); color: #23060f; }
 .offer { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px; border-radius: 12px; background: var(--bg); }
 .offer span { color: var(--muted); font-size: 13px; } .offer b { font-family: var(--mono); font-size: 18px; color: var(--amber); }
+.upd { position: fixed; z-index: 30; top: calc(8px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); padding: 12px; border-radius: 12px; background: var(--amber); color: var(--amber-ink); font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -1964,7 +1965,7 @@ function viewCarriere() {
   </div>
   <h2>Journal</h2>
   <ul class="journal">${S.log.slice(0, 30).map(l => `<li><span>S${l.w}</span>${esc(l.t)}</li>`).join("") || "<li>Rien encore.</li>"}</ul>
-  <p class="hint ver">MyStar version 11 · livre et documentaire</p>
+  <p class="hint ver">MyStar version ${APP_VER}</p>
   <div class="reset">${confirmReset ? `<p>Effacer cette carrière et recommencer à zéro ?</p><button class="sm danger" data-do="reset2">Oui, tout effacer</button><button class="sm" data-do="reset0">Annuler</button>` : `<button class="sm" data-do="reset1">Recommencer une carrière</button>`}</div>`;
 }
 function viewModal() {
@@ -2077,7 +2078,20 @@ document.addEventListener("click", e => {
   }
 });
 
+const APP_VER = 12;
+// cherche une version plus récente sur GitHub et propose de recharger (contourne le cache de l'iPhone)
+function checkUpdate() {
+  if (!/github\.io$/.test(location.hostname)) return;
+  fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" }).then(r => r.text()).then(t => {
+    const m = t.match(/APP_VER = (\d+)/); if (!m || +m[1] <= APP_VER) return;
+    const bar = document.createElement("button"); bar.className = "upd"; bar.textContent = `Nouvelle version disponible (v${m[1]}) : touche pour mettre à jour`;
+    bar.onclick = () => { save(); location.replace(location.pathname + "?v=" + m[1]); };
+    document.body.appendChild(bar);
+  }).catch(() => {});
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 function start(data) {
+  setTimeout(checkUpdate, 1500);
   S = migrate((data && data.S) || load());
   if (S) S.pending = null;
   render();
