@@ -269,7 +269,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 8, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 9, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
@@ -280,7 +280,7 @@ function newState(o) {
     markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0,
     fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0,
     mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0, tour: null, tours: 0, bestTour: 0,
-    cal: null, sponsors: [], nego: null, kids: [], baby: null, familyLast: 0, pendingWed: false
+    cal: null, sponsors: [], nego: null, kids: [], baby: null, familyLast: 0, pendingWed: false, book: {}, docu: {}
   };
 }
 
@@ -300,7 +300,8 @@ function migrate(S) {
   if (S && S.v === 5) Object.assign(S, { v: 6, mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0 });
   if (S && S.v === 6) Object.assign(S, { v: 7, tour: null, tours: 0, bestTour: 0 });
   if (S && S.v === 7) { Object.assign(S, { v: 8, cal: null, sponsors: [], nego: null, kids: [], baby: null, familyLast: 0, pendingWed: false }); if (S.love) Object.assign(S.love, { bond: 60, since: S.week, married: false }); }
-  return S && S.v === 8 ? S : null;
+  if (S && S.v === 8) Object.assign(S, { v: 9, book: {}, docu: {} });
+  return S && S.v === 9 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -488,7 +489,7 @@ function endWeek(S) {
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
   bizWeek(S, lines);
-  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr); tourWeek(S, lines); sponsWeek(S, lines, pr); familyWeek(S, lines, pr); calBonus(S, lines);
+  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr); tourWeek(S, lines); sponsWeek(S, lines, pr); familyWeek(S, lines, pr); docWeek(S, lines, pr); calBonus(S, lines);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -1314,6 +1315,64 @@ function familyWeek(S, lines, pr) {
   S.kids.forEach(k => { if ((S.week - k.born) % 52 === 0 && S.week > k.born) lines.push(`${k.n} fête ses ${kidAge(S, k)} an${kidAge(S, k) > 1 ? "s" : ""}`); });
   if (S.baby && S.week >= S.baby.due && !pr.p) { pr.p = familyChoice(S, S.baby.how); S.baby = null; }
 }
+// ===== MyStar — autobiographie et documentaire =====
+const TONES = [
+  { n: "Pudique", d: "Tu gardes tes secrets", m: 0.8, risk: 0 },
+  { n: "Sincère", d: "Tes doutes, tes galères, sans tout dévoiler", m: 1.2, risk: 0 },
+  { n: "Sans filtre", d: "Les coulisses, les amours, les règlements de comptes", m: 1.8, risk: 0.4 }
+];
+function toneRisk(S, what) {
+  if (Math.random() < 0.5 && S.love) { S.love.bond = clamp(S.love.bond - 25, 0, 100); return ` ${S.love.name} n'a pas aimé ce que tu as révélé : complicité −25.`; }
+  const c = Math.round(30000 + S.fans * 0.02); spend(S, c); return ` Une personne citée t'attaque en justice pour ${what} : ${fmt(c)} € de frais et d'indemnités.`;
+}
+function toneChoice(S, kind) {
+  return { t: kind === "book" ? `Ton manuscrit est prêt (qualité ${Math.round(S.book.q)}). Quel ton pour la version publiée ?` : `Le montage du documentaire est prêt. Quel ton garder ?`,
+    choices: TONES.map((t, i) => ({ l: `${t.n} : ${t.d.toLowerCase()}`, f: S => kind === "book" ? publishBook(S, i) : releaseDoc(S, i) })) };
+}
+Object.assign(ACTIONS, {
+  bookw: { e: 20, cost: 0, cond: S => palier(S.fans) >= 4 && !S.book.sales && S.week >= (S.book.next || 0), run: S => {
+    const B = S.book; B.ch = (B.ch || 0) + 1; B.q = ((B.q || 0) * (B.ch - 1) + clamp(S.ecriture * 0.8 + rnd(0, 25), 5, 100)) / B.ch;
+    if (B.ch >= 6) { S.pendingTone = "book"; return "Dernier chapitre écrit !"; }
+    return `Chapitre ${B.ch}/6 de ton autobiographie écrit.`; } },
+  docw: { e: 30, cost: 0, cond: S => palier(S.fans) >= 4 && !S.docu.out && S.week >= (S.docu.next || 0), run: S => {
+    const D = S.docu; D.sc = (D.sc || 0) + 1;
+    if (D.sc === 1 && palier(S.fans) >= 5 && !D.deal) { S.pendingDocDeal = true; }
+    if (D.sc >= 3) { S.pendingTone = "doc"; return "Dernières images tournées."; }
+    return `Tournage du documentaire : ${D.sc}/3 sessions.`; } }
+});
+function publishBook(S, i) {
+  const B = S.book, t = TONES[i]; B.tone = i; B.sales = true; B.w0 = S.week; B.total = 0;
+  B.base = S.fans * reach(S) * 0.008 * (B.q / 60) * t.m * buzzMult(S) + 500;
+  let m = `Ton autobiographie sort en librairie (${t.n.toLowerCase()}).`;
+  if (i === 1) { S.buzz = clamp(S.buzz + 10, -50, 50); S.moral = clamp(S.moral + 5, 0, 100); }
+  if (Math.random() < t.risk) m += toneRisk(S, "diffamation"); else if (i === 2) S.buzz = clamp(S.buzz + 15, -50, 50);
+  return m;
+}
+function releaseDoc(S, i) {
+  const D = S.docu, t = TONES[i]; D.out = true; D.next = S.week + 52; S.docus = (S.docus || 0) + 1;
+  const views = Math.round(S.fans * reach(S) * 0.35 * t.m * buzzMult(S));
+  const g = Math.round(S.fans * 0.05 * t.m * sat(S) + 2000); S.fans += g; S.buzz = clamp(S.buzz + 10 + i * 5, -50, 50);
+  let m;
+  if (D.deal) m = `Ton documentaire sort sur ${D.deal.who} : ${fmt(views)} vues, +${fmt(g)} fans.`;
+  else { const cost = 80000, rev = Math.round(views * 0.03); spend(S, cost); earn(S, rev); m = `Ton documentaire sort en salles et en ligne : ${fmt(views)} vues, ${fmt(rev - cost)} € de résultat, +${fmt(g)} fans.`; }
+  if (Math.random() < t.risk) m += toneRisk(S, "atteinte à la vie privée");
+  if (views > 2000000 && i > 0) { S.flags.docAward = (S.flags.docAward || 0) + 1; m += " La critique salue ta sincérité : il est cité pour un prix du documentaire."; }
+  D.sc = 0; D.deal = null;
+  return m;
+}
+NEGO_DONE.doc = (S, N) => { S.docu.deal = { who: "Streamix", adv: N.cur }; earn(S, N.cur); return `Streamix achète ton documentaire : ${fmt(N.cur)} € d'avance.`; };
+function docWeek(S, lines, pr) {
+  const B = S.book;
+  if (B && B.sales) {
+    const n = Math.round(B.base * Math.pow(0.75, S.week - B.w0));
+    if (n < 50) { lines.push(`Ton livre a fini sa carrière en librairie : ${fmt(B.total)} exemplaires vendus`); log(S, `Autobiographie : ${fmt(B.total)} exemplaires.`); S.books = (S.books || 0) + 1; S.book = { next: S.week + 52, best: Math.max(B.total, B.best || 0) }; }
+    else {
+      B.total += n; const r = Math.round(n * 2.6); earn(S, r); lines.push(`Ton livre : ${fmt(n)} exemplaires vendus, +${fmt(r)} € de droits`);
+      if (S.week - B.w0 === 4 && B.q >= 70 && !pr.p) { const g = Math.round(S.fans * 0.02); S.fans += g; lines.push(`Ton livre remporte le Prix des lecteurs : +${fmt(g)} fans`); log(S, "Prix des lecteurs pour ton autobiographie."); }
+    }
+  }
+  if (S.docu && S.docu.out && S.week >= S.docu.next) S.docu = { next: S.week };
+}
 // ===== MyStar — semaine jour par jour =====
 // 7 jours × 3 moments (matin, après-midi, soir). Chaque activité prend sa place dans l'agenda.
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -1326,7 +1385,7 @@ const SLOT = {
   tapis: ["s", 1, "Tapis rouge"], theatre: ["j", 1, "Théâtre"], casting: ["j", 1, "Casting"], vegas: ["w", 0, "Las Vegas"], charite: ["s", 1, "Charité"],
   scout: ["j", 1, "Repérage"], propose: ["s", 1, "Demande"], family: ["d", 3, "Famille"], baby: ["s", 1, "Projet bébé"], adopt: ["j", 1, "Adoption"],
   write: ["j", 1, "Écriture"], record: ["j", 2, "Studio"], release: ["j", 1, "Sortie"], album: ["d", 3, "Album"], clip: ["d", 3, "Clip"], feat: ["j", 1, "Featuring"],
-  gig: ["s", 1, "Concert"], promo: ["d", 3, "Promo"], abroad: ["d", 3, "Tournée"], asingle: ["j", 1, "Label"], acoach: ["j", 1, "Label"], coachCand: ["j", 1, "Coaching télé"], fest: ["w", 0, "Festival"]
+  gig: ["s", 1, "Concert"], bookw: ["j", 1, "Livre"], docw: ["d", 3, "Documentaire"], promo: ["d", 3, "Promo"], abroad: ["d", 3, "Tournée"], asingle: ["j", 1, "Label"], acoach: ["j", 1, "Label"], coachCand: ["j", 1, "Coaching télé"], fest: ["w", 0, "Festival"]
 };
 function emptyCal() { return DAYS.map(() => [null, null, null]); }
 // cherche une place ; renvoie la liste des créneaux [jour, moment] ou null
@@ -1725,8 +1784,13 @@ function viewStar() {
     ${card("charite", "Concert caritatif", "Pas de recette, mais impact, image et moral en hausse.")}`
   : p >= 3 ? `<div class="panel"><p class="hint">Crée ta fondation pour une cause qui te tient à cœur (50 000 €).</p><div class="chips">${CAUSES.map((c, i) => `<button class="chip ${i === causeSel ? "sel" : ""}" data-cause="${i}">${c}</button>`).join("")}</div><button class="cta" data-do="found" ${S.money < 50000 ? "disabled" : ""}>Créer ma fondation</button></div>`
   : `<p class="hint">Dès le palier ${palName(S, 3)}, tu pourras créer ta fondation.</p>`}
+  <h2>Livre et documentaire</h2>
+  ${p >= 4 ? `<div class="panel"><p class="hint">${S.book.sales ? `Ton autobiographie est en librairie : ${fmt(S.book.total)} exemplaires vendus.` : S.book.ch ? `Autobiographie : chapitre ${S.book.ch}/6, qualité ${Math.round(S.book.q)}.` : S.book.next > S.week ? `Prochain livre possible semaine ${S.book.next}.` : "Six séances d'écriture, puis tu choisis le ton : pudique, sincère ou sans filtre."}</p>
+    <p class="hint">${S.docu.out ? `Documentaire sorti. Le prochain sera possible semaine ${S.docu.next}.` : S.docu.sc ? `Documentaire : ${S.docu.sc}/3 sessions de tournage${S.docu.deal ? `, vendu à ${S.docu.deal.who}` : ""}.` : `Trois journées de tournage.${p >= 5 ? " Une plateforme voudra sûrement l'acheter." : " Sans plateforme, tu le produis toi-même (80 000 €)."}`}</p></div>
+    ${card("bookw", "Écrire un chapitre", "Ta plume compte : la qualité dépend de ton écriture.")}
+    ${card("docw", "Tourner le documentaire", "Une journée entière avec l'équipe de tournage.")}` : `<p class="hint">Dès ${palName(S, 4)}, tu pourras écrire ton autobiographie et tourner ton documentaire.</p>`}
   <h2>Trophées</h2>
-  <div class="panel kv"><div><span>Notes d'Or (Belgique)</span><b>${S.awardsWon || 0}</b></div><div><span>Golden Notes Awards</span><b>${S.intlAwards || 0}</b></div><div><span>Statuettes de l'Académie</span><b>${S.oscars || 0}</b></div><div><span>Ères</span><b>${S.eras || 0}</b></div></div>`;
+  <div class="panel kv"><div><span>Notes d'Or (Belgique)</span><b>${S.awardsWon || 0}</b></div><div><span>Golden Notes Awards</span><b>${S.intlAwards || 0}</b></div><div><span>Statuettes de l'Académie</span><b>${S.oscars || 0}</b></div><div><span>Ères</span><b>${S.eras || 0}</b></div><div><span>Livres publiés</span><b>${S.books || 0}</b></div><div><span>Documentaires</span><b>${S.docus || 0}</b></div></div>`;
 }
 // ----- Mini-jeu de concert -----
 const BEATS = 10, GAP = 950, LEAD = 1300;
@@ -1947,7 +2011,9 @@ document.addEventListener("click", e => {
     log(S, `${pr}, ${a} ans, se lance dans la musique sous le nom de ${n}.`); tab = "agenda"; return after();
   }
   if (d.tab) { tab = d.tab; confirmReset = false; render(); window.scrollTo(0, 0); return; }
-  if (d.act) { const m = doAction(S, d.act); if (S.pendingLove) { loveChoice(); } if (S.pendingWed) { S.pendingWed = false; S.pending = weddingChoice(S); modal = { type: "ev", ev: S.pending }; } return after(m); }
+  if (d.act) { const m = doAction(S, d.act); if (S.pendingLove) { loveChoice(); } if (S.pendingWed) { S.pendingWed = false; S.pending = weddingChoice(S); modal = { type: "ev", ev: S.pending }; }
+  if (S.pendingDocDeal) { S.pendingDocDeal = false; openNego(S, { kind: "doc", who: "Streamix", base: Math.round(S.fans * 0.3 / 1000) * 1000, unit: "€", title: "Droits de ton documentaire" }); modal = { type: "nego" }; }
+  if (S.pendingTone) { const k = S.pendingTone; S.pendingTone = null; S.pending = toneChoice(S, k); modal = { type: "ev", ev: S.pending }; } return after(m); }
   if (d.nask !== undefined) { negoAsk(S, +d.nask); return render(); }
   if (d.nend !== undefined) { const m = negoClose(S, d.nend === "1"); modal = S.pending ? { type: "ev", ev: S.pending } : null; return after(m); }
   if (d.wg !== undefined) { const t = $("#stitle").value; writeGenre = +d.wg; render(); $("#stitle").value = t; return; }
