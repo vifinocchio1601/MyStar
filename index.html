@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache">
 <title>MyStar</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1964,6 +1964,7 @@ function viewCarriere() {
   </div>
   <h2>Journal</h2>
   <ul class="journal">${S.log.slice(0, 30).map(l => `<li><span>S${l.w}</span>${esc(l.t)}</li>`).join("") || "<li>Rien encore.</li>"}</ul>
+  <p class="hint ver">MyStar version 11 · livre et documentaire</p>
   <div class="reset">${confirmReset ? `<p>Effacer cette carrière et recommencer à zéro ?</p><button class="sm danger" data-do="reset2">Oui, tout effacer</button><button class="sm" data-do="reset0">Annuler</button>` : `<button class="sm" data-do="reset1">Recommencer une carrière</button>`}</div>`;
 }
 function viewModal() {
