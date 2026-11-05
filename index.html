@@ -115,6 +115,20 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .chart li.me > b, .chart li.me span { color: var(--amber); }
 .mv { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .mv.up { color: var(--good); } .mv.dn { color: var(--bad); } .mv.new { color: var(--rose); font-weight: 700; }
+.buzz { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.buzz b.up { color: var(--good); } .buzz b.dn { color: var(--bad); }
+.soc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.soc div { background: var(--bg); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; min-width: 0; }
+.soc span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.soc b { font-family: var(--mono); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.sbar.big { height: 10px; background: var(--bg); }
+.ft { font-family: var(--body); font-size: 13px; color: var(--rose); font-weight: 600; }
+.sm2 { font-size: 22px; color: var(--fg); }
+.flist { display: flex; flex-direction: column; gap: 6px; }
+.frow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--raise); border-radius: 10px; text-align: left; }
+.frow span { display: flex; flex-direction: column; min-width: 0; }
+.frow small { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.frow em { font-style: normal; font-size: 12px; color: var(--amber); white-space: nowrap; }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -151,8 +165,9 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .dock > * { max-width: 560px; margin-left: auto; margin-right: auto; }
 .next { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; border-radius: 12px; background: var(--rose); color: #23060f; font-weight: 800; font-size: 16px; font-family: var(--display); }
 .next span { font-family: var(--body); font-size: 12px; font-weight: 600; opacity: .8; }
-.tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-top: 8px; }
-.tabs button { padding: 8px 2px; border-radius: 8px; font-size: 12px; white-space: nowrap; font-weight: 600; color: var(--muted); }
+.tabs { display: flex; gap: 2px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; padding: 8px 11px; border-radius: 8px; font-size: 13px; white-space: nowrap; font-weight: 600; color: var(--muted); }
 .tabs button.on { color: var(--fg); background: var(--surface); }
 
 /* Fenêtres */
@@ -213,14 +228,15 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 3, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 4, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
     log: [], yearIncome: 0, quarterStreams: 0, boostNext: 1,
     active: false, vids: 0, teleCd: 0, maxPal: 0, won: false,
     totalEarned: 0, weekIn: 0, weekOut: 0, pending: null, report: null,
-    moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0
+    moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0,
+    markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0
   };
 }
 
@@ -235,7 +251,8 @@ function palName(S, i) { return S.sexe === "f" && PAL[i].nf ? PAL[i].nf : PAL[i]
 function migrate(S) {
   if (S && S.v === 1) Object.assign(S, { v: 2, prenom: S.name, sexe: "h", age: 25 });
   if (S && S.v === 2) { Object.assign(S, { v: 3, moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0 }); S.songs.forEach(s => { s.cert = 0; }); }
-  return S && S.v === 3 ? S : null;
+  if (S && S.v === 3) Object.assign(S, { v: 4, markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0 });
+  return S && S.v === 4 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -251,10 +268,10 @@ const ACTIONS = {
   scenePro: { e: 20, cost: 400, cond: S => palier(S.fans) >= 3, run: S => { const g = gain(S.scene, 8, S); S.scene = clamp(S.scene + g, 0, 100); return `Coach scénique : scène +${g.toFixed(1)}.`; } },
   video: { e: 15, cost: 0, run: S => {
     let g = rnd(6, 18) * (0.6 + S.voix / 60) + S.fans * 0.02 * (S.voix / 50) * sat(S);
-    g = g / (1 + S.vids * 0.6) * (has(S, "cm") ? 1.5 : 1) * img(S);
+    g = g / (1 + S.vids * 0.6) * (has(S, "cm") ? 1.5 : 1) * img(S) * buzzMult(S);
     let viral = Math.random() < 0.04;
     if (viral) g = g * 8 + 50;
-    g = Math.round(g); S.fans += g; S.vids++; S.active = true;
+    g = Math.round(g); S.fans += g; S.vids++; S.active = true; S.social.tt += Math.round(g * 2); S.social.yt += Math.round(g * 0.8);
     return viral ? `Ta vidéo devient virale : +${fmt(g)} fans !` : `Vidéo postée : +${fmt(g)} fans.`;
   } },
   tele: { e: 30, cost: 0, cond: S => palier(S.fans) >= 3, ready: S => S.teleCd <= 0, run: S => {
@@ -306,17 +323,19 @@ function recordSong(S, id, st) {
 }
 function streamBase(S, s, mult) {
   const trend = GENRES[S.trend] === s.genre ? 1.4 : 1;
-  return (S.fans * 1.0 + 250) * Math.pow(s.note / 60, 2.2) * trend * (S.label ? 2.5 : 1) * mult;
+  return (S.fans * reach(S) + 250 + (s.feat ? s.feat.f * 0.6 : 0)) * Math.pow(s.note / 60, 2.2) * trend * (S.label ? 2.5 : 1) * mult;
 }
 function releaseSong(S, id) {
   const s = S.songs.find(x => x.id === id);
   if (!s || s.note === null || s.rel || S.energy < E_REL) return null;
   S.energy -= E_REL; S.active = true;
-  let mult = S.boostNext * (has(S, "press") ? 1.3 : 1) * img(S); S.boostNext = 1;
+  let mult = S.boostNext * (has(S, "press") ? 1.3 : 1) * img(S) * buzzMult(S); S.boostNext = 1;
+  if (s.feat) S.fans += Math.round(s.feat.f * 0.03 * sat(S));
   let viral = s.note >= 55 && Math.random() < 0.05;
   if (viral) mult *= 6;
   s.rel = true; s.w0 = S.week; s.base = streamBase(S, s, mult);
-  const m = viral ? `« ${s.title} » explose sur les plateformes dès sa sortie !` : `Single « ${s.title} » sorti.`;
+  const ft = s.feat ? ` (feat. ${s.feat.n})` : "";
+  const m = viral ? `« ${s.title} »${ft} explose sur les plateformes dès sa sortie !` : `Single « ${s.title} »${ft} sorti.`;
   log(S, m); return m;
 }
 function albumPool(S) { return S.songs.filter(s => s.note !== null && !s.alb); }
@@ -329,7 +348,7 @@ function releaseAlbum(S, promo, name) {
   const k = Math.pow(avg / 60, 2);
   pool.forEach(s => { s.alb = true; s.rel = true; s.w0 = S.week; s.base = streamBase(S, s, 0.6 * p.m); });
   const fg = Math.round(S.fans * 0.08 * k * p.m * sat(S) + 100);
-  const sales = Math.round(S.fans * 0.015 * k * p.m * 13 * (S.label ? 0.3 : 1));
+  const sales = Math.round(S.fans * reach(S) * 0.015 * k * p.m * 13 * (S.label ? 0.3 : 1));
   S.fans += fg; earn(S, sales);
   const t = (name || "").trim() || pool[0].title;
   const m = `Album « ${t} » sorti (${pool.length} titres, note moyenne ${Math.round(avg)}) : +${fmt(fg)} fans, ventes ${fmt(sales)} €.`;
@@ -359,7 +378,7 @@ function concert(S, vid, dates) {
       f = a * (S.voix + sc) / 200 * (v.type === "fest" ? 0.25 : 1.5);
       r = (v.cachet || 0) * (has(S, "manager") ? 1.2 : 1);
     }
-    aud += a; fg += f; net += r;
+    aud += a; fg += f; net += r; S.gigAud += a;
   }
   fg = Math.round(fg * (has(S, "chorus") ? 1.25 : 1) * img(S)); S.fans += fg;
   S.moral = clamp(S.moral + 4, 0, 100);
@@ -416,6 +435,7 @@ function endWeek(S) {
   const p = palier(S.fans), lv = LIVING[p]; spend(S, lv);
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
+  bizWeek(S, lines);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -540,7 +560,7 @@ Object.assign(ACTIONS, {
   } },
   date: { e: 15, cost: 80, cond: S => !!S.love, run: S => { S.love.last = S.week; S.moral = clamp(S.moral + 12, 0, 100); return `Soirée en amoureux avec ${S.love.name} : moral +12.`; } }
 });
-function vacPrix(S) { return [0, 0, 600, 1500, 5000, 15000, 40000][palier(S.fans)]; }
+function vacPrix(S) { return [0, 0, 600, 1500, 5000, 15000, 40000, 80000][palier(S.fans)]; }
 
 // Clips
 function shootClip(S, id, cid) {
@@ -643,6 +663,141 @@ function lifeWeek(S, lines) {
   if (S.moral < 20) lines.push(`Moral au plus bas (${Math.round(S.moral)}) : ta voix et tes progrès en souffrent. Pense à souffler.`);
   if (S.vacCd > 0) S.vacCd--;
 }
+// ===== MyStar — étranger, featurings, réseaux, business =====
+PAL.push({ n: "Légende mondiale", f: 10000000 });
+LIVING.push(1200);
+
+// ----- Étranger -----
+const MK = [
+  { id: "fr", n: "France", d: "Le marché voisin, énorme pour la chanson en français", min: 3, w: 1.0, cost: 3000, tour: 250000 },
+  { id: "qc", n: "Québec", d: "Petit marché, public très fidèle", min: 3, w: 0.3, cost: 6000, tour: 120000 },
+  { id: "eu", n: "Reste de l'Europe", d: "Allemagne, Pays-Bas, Suisse, Italie…", min: 4, w: 1.3, cost: 25000, tour: 600000 },
+  { id: "us", n: "États-Unis", d: "Le plus dur à percer, et de loin le plus gros", min: 5, w: 2.5, cost: 90000, tour: 1800000 }
+];
+function reach(S) { return 1 + MK.reduce((a, m) => a + m.w * (S.markets[m.id] || 0) / 100, 0); }
+function buzzMult(S) { return 1 + S.buzz / 100; }
+function promoAbroad(S, id) {
+  const m = MK.find(x => x.id === id);
+  if (!m || palier(S.fans) < m.min || S.energy < 40 || S.money < m.cost) return null;
+  S.energy -= 40; spend(S, m.cost); S.active = true;
+  const pr = S.markets[id] || 0;
+  const g = (8 + S.voix / 12) * buzzMult(S) * (has(S, "press") ? 1.3 : 1) * (1 - pr / 140);
+  S.markets[id] = clamp(pr + g, 0, 100);
+  const fg = Math.round((S.fans * 0.015 + 3000) * m.w * buzzMult(S) * sat(S)); S.fans += fg;
+  const msg = `Tournée promo (${m.n}) : présence ${Math.round(S.markets[id])} %, +${fmt(fg)} fans.`; log(S, msg); return msg;
+}
+function tourAbroad(S, id) {
+  const m = MK.find(x => x.id === id), pr = S.markets[id] || 0;
+  if (!m || pr < 40 || S.energy < gigE(S, 70)) return null;
+  const cost = Math.round(m.tour * 0.35); if (S.money < cost) return null;
+  S.energy -= gigE(S, 70); S.active = true;
+  const rev = Math.round(m.tour * pr / 100 * (0.6 + sceneEff(S) / 150) * (has(S, "manager") ? 1.2 : 1));
+  const fg = Math.round((6000 + S.fans * 0.01) * m.w * pr / 100 * (has(S, "chorus") ? 1.25 : 1) * sat(S));
+  spend(S, cost); earn(S, rev); S.fans += fg; S.gigAud += Math.round(rev / 50); S.markets[id] = clamp(pr + 4, 0, 100);
+  S.moral = clamp(S.moral + 6, 0, 100);
+  const msg = `Tournée (${m.n}) : recettes ${fmt(rev)} €, frais ${fmt(cost)} €, +${fmt(fg)} fans.`; log(S, msg); return msg;
+}
+
+// ----- Featurings -----
+const FEAT_FANS = [2500, 6000, 12000, 25000, 45000, 80000, 140000, 250000, 400000, 650000, 1000000, 1600000, 2500000, 4000000, 6500000, 10000000];
+const FEATS = FEAT_FANS.map((f, i) => ({ i, n: CHART_ARTISTS[(i * 3) % CHART_ARTISTS.length], f }));
+function featOdds(S, a) { const r = a.f / Math.max(1, S.fans); return r <= 1.5 ? 0.9 : r <= 4 ? 0.45 : r <= 10 ? 0.12 : 0; }
+function featFee(a) { return Math.round(a.f * 0.04 + 300); }
+function askFeat(S, songId, idx) {
+  const s = S.songs.find(x => x.id === songId), a = FEATS[idx];
+  if (!s || s.note === null || s.rel || s.feat || S.energy < 10) return null;
+  s.tried = s.tried || []; if (s.tried.includes(idx)) return null;
+  const fee = featFee(a); if (S.money < fee) return null;
+  S.energy -= 10; s.tried.push(idx);
+  if (Math.random() >= featOdds(S, a)) { const m = `${a.n} décline l'invitation sur « ${s.title} ».`; log(S, m); return m; }
+  spend(S, fee); s.feat = { n: a.n, f: a.f }; s.note = Math.min(100, s.note + 3);
+  const m = `${a.n} pose sa voix sur « ${s.title} » (${fmt(fee)} €).`; log(S, m); return m;
+}
+
+// ----- Réseaux -----
+const POSTS = {
+  insta: { e: 5, cost: 0, run: S => {
+    S.posts = (S.posts || 0) + 1;
+    const g = Math.round((rnd(3, 10) + S.fans * 0.004) * buzzMult(S) * img(S) * (has(S, "cm") ? 1.5 : 1) / S.posts);
+    S.fans += g; S.social.ig += Math.round(g * 2.5 + S.fans * 0.002); S.buzz = clamp(S.buzz + 1, -50, 50); S.active = true;
+    return `Post Instagram : +${fmt(g)} fans.`; } },
+  live: { e: 15, cost: 0, run: S => {
+    const g = Math.round((rnd(5, 15) + S.fans * 0.006) * buzzMult(S) * (0.6 + S.voix / 100));
+    S.fans += g; S.social.tt += Math.round(g * 3); S.moral = clamp(S.moral + 3, 0, 100); S.active = true;
+    return `Live TikTok avec tes fans : +${fmt(g)} fans, moral +3.`; } },
+  interview: { e: 20, cost: 0, cond: S => palier(S.fans) >= 2, run: S => {
+    const ok = Math.random() < 0.55 + S.ecriture / 250;
+    const g = Math.round((S.fans * 0.01 + 80) * sat(S) * (ok ? 1 : 0.4));
+    S.fans += g; S.buzz = clamp(S.buzz + (ok ? 8 : -4), -50, 50); S.active = true;
+    return ok ? `Interview réussie à la radio : buzz +8, +${fmt(g)} fans.` : `Interview un peu ratée, tu as bafouillé : buzz −4.`; } }
+};
+Object.assign(ACTIONS, POSTS);
+function buzzLabel(b) { return b >= 30 ? "Tout le monde parle de toi" : b >= 10 ? "Bonne image" : b > -10 ? "Neutre" : b > -30 ? "Mauvaise passe" : "Bad buzz"; }
+
+EVENTS.push(
+  { w: 2, cond: S => palier(S.fans) >= 2, run: S => ({ t: "Une vieille vidéo gênante de toi refait surface et tourne sur les réseaux.", choices: [
+    { l: "T'excuser publiquement", f: S => { S.buzz = clamp(S.buzz - 5, -50, 50); S.moral = clamp(S.moral - 5, 0, 100); return "Tes excuses passent bien. L'affaire retombe vite (buzz −5)."; } },
+    { l: "Ignorer", f: S => { if (Math.random() < 0.5) return "Personne n'en parle plus deux jours après."; S.buzz = clamp(S.buzz - 25, -50, 50); return "Le silence passe mal : bad buzz (−25)."; } },
+    { l: "En rire avec humour", f: S => { if (Math.random() < 0.35 + S.ecriture / 200) { S.buzz = clamp(S.buzz + 15, -50, 50); return "Ta réponse fait rire tout le monde : buzz +15."; } S.buzz = clamp(S.buzz - 30, -50, 50); return "L'humour tombe à plat : gros bad buzz (−30)."; } }] }) },
+  { w: 2, cond: S => palier(S.fans) >= 3, run: S => { const r = pick(CHART_ARTISTS); return { t: `${r} te tacle dans une interview. Les médias attendent ta réaction.`, choices: [
+    { l: "Répondre par un morceau", f: S => { S.buzz = clamp(S.buzz + 12, -50, 50); S.boostNext *= 1.4; return `Tu réponds en chanson : buzz +12, ton prochain single aura +40 % d'écoutes.`; } },
+    { l: "Rester classe", f: S => { S.buzz = clamp(S.buzz + 5, -50, 50); return "Ta classe est saluée : buzz +5."; } },
+    { l: "Clasher en retour", f: S => { if (Math.random() < 0.5) { S.buzz = clamp(S.buzz + 20, -50, 50); const g = Math.round(S.fans * 0.03); S.fans += g; return `Le clash fait le buzz : +${fmt(g)} fans.`; } S.buzz = clamp(S.buzz - 25, -50, 50); return "Le public trouve ça puéril : bad buzz (−25)."; } }] }; } },
+  { w: 2, run: S => { S.buzz = clamp(S.buzz + 20, -50, 50); return { t: "Un de tes posts devient un mème : buzz +20." }; } },
+  { w: 2, cond: S => palier(S.fans) >= 2, run: S => { const a = pick(FEATS.filter(x => x.f < S.fans * 1.5 && x.f > S.fans * 0.1)) || FEATS[0]; const c = Math.round(a.f * 0.02 + 200); return { t: `${a.n} (${fmt(a.f)} fans) te propose un featuring sur son prochain titre, payé ${fmt(c)} €.`, choices: [
+    { l: "Accepter (−20 énergie)", f: S => { S.energy = Math.max(0, S.energy - 20); earn(S, c); const g = Math.round(a.f * 0.04 * sat(S) + 50); S.fans += g; return `Featuring avec ${a.n} : +${fmt(c)} € et +${fmt(g)} fans.`; } },
+    { l: "Refuser", f: () => "Tu déclines poliment." }] }; } }
+);
+
+// ----- Business -----
+const MERCH = [{ n: "100 t-shirts", q: 100, prix: 900, min: 1 }, { n: "1 000 t-shirts et casquettes", q: 1000, prix: 7000, min: 3 }, { n: "10 000 articles", q: 10000, prix: 55000, min: 4 }];
+const BRANDS = [
+  { id: "wear", n: "Ta ligne de vêtements", prix: 150000, k: 0.004, min: 4 },
+  { id: "parfum", n: "Ton parfum", prix: 600000, k: 0.006, min: 5 }
+];
+const IMMO = { prix: 280000, loyer: 1050 };
+function buyMerch(S, i) { const m = MERCH[i]; if (!m || palier(S.fans) < m.min || S.money < m.prix) return null; spend(S, m.prix); S.merch += m.q; const t = `Commande de merch : ${m.n} (${fmt(m.prix)} €).`; log(S, t); return t; }
+function launchBrand(S, id) { const b = BRANDS.find(x => x.id === id); if (!b || S.brands[id] || palier(S.fans) < b.min || S.money < b.prix) return null; spend(S, b.prix); S.brands[id] = true; const t = `Lancement : ${b.n.toLowerCase()} (${fmt(b.prix)} €).`; log(S, t); return t; }
+function invest(S, kind, amt) {
+  if (kind === "immo") { if (S.money < IMMO.prix) return null; spend(S, IMMO.prix); S.inv.immo.push(IMMO.prix); const t = `Achat d'un appartement à louer (${fmt(IMMO.prix)} €).`; log(S, t); return t; }
+  if (S.money < amt) return null; spend(S, amt); S.inv[kind] += amt; S.inv[kind + "In"] = (S.inv[kind + "In"] || 0) + amt;
+  const t = `${fmt(amt)} € placés sur ${kind === "ep" ? "ton compte d'épargne" : "ton portefeuille ETF"}.`; log(S, t); return t;
+}
+function withdraw(S, kind) {
+  if (kind === "immo") {
+    if (!S.inv.immo.length) return null; const v = Math.round(S.inv.immo.pop()); S.money += v;
+    const t = `Vente d'un appartement : ${fmt(v)} €.`; log(S, t); return t;
+  }
+  const v = Math.round(S.inv[kind]); if (!v) return null;
+  let tax = 0;
+  if (kind === "etf") { const pv = v - (S.inv.etfIn || 0); if (pv > 10000) tax = Math.round((pv - 10000) * 0.1); S.inv.etfIn = 0; }
+  else S.inv.epIn = 0;
+  S.inv[kind] = 0; S.money += v - tax;
+  const t = `Retrait de ${fmt(v)} €${tax ? ` (taxe de 10 % sur les plus-values : ${fmt(tax)} €)` : ""}.`; log(S, t); return t;
+}
+function bizWeek(S, lines) {
+  // merch
+  if (S.merch > 0) {
+    const n = Math.min(S.merch, Math.round((S.fans * 0.0006 + S.gigAud * 0.04) * buzzMult(S)));
+    if (n > 0) { S.merch -= n; earn(S, n * 25); lines.push(`Merch : ${fmt(n)} articles vendus, +${fmt(n * 25)} €`); }
+    if (S.merch === 0) lines.push("Stock de merch épuisé");
+  }
+  // marques
+  BRANDS.forEach(b => { if (S.brands[b.id]) { const r = Math.round(S.fans * b.k * buzzMult(S)); earn(S, r); lines.push(`${b.n} : +${fmt(r)} €`); } });
+  // placements
+  if (S.inv.ep) { const i = S.inv.ep * 0.02 / 52; S.inv.ep += i; }
+  if (S.inv.etf) { const r = 0.07 / 52 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.04; S.inv.etf *= 1 + r; }
+  if (S.inv.immo.length) {
+    S.inv.immo = S.inv.immo.map(v => v * (1 + 0.025 / 52));
+    const l = Math.round(S.inv.immo.length * IMMO.loyer * 12 / 52); S.money += l; S.totalEarned += l;
+    lines.push(`Loyers de tes ${S.inv.immo.length} appartement${S.inv.immo.length > 1 ? "s" : ""} : +${fmt(l)} €`);
+  }
+  // buzz et présence à l'étranger
+  S.buzz = Math.round(S.buzz * 0.9);
+  MK.forEach(m => { if (S.markets[m.id]) S.markets[m.id] = Math.max(0, S.markets[m.id] - 1.5); });
+  S.gigAud = 0; S.posts = 0;
+}
+function netWorth(S) { return S.money + S.inv.ep + S.inv.etf + S.inv.immo.reduce((a, v) => a + v, 0); }
 // ===== MyStar — interface =====
 const KEY = "mystar-v1";
 let S = null, tab = "agenda", modal = null, confirmReset = false, setup = { sexe: "h", prenom: "", name: "", age: "20", genre: 0 }, writeGenre = null, albumPromo = 0;
@@ -714,10 +869,10 @@ function render() {
     <div class="prog"><div style="width:${(prog * 100).toFixed(1)}%"></div></div>
     <p class="nexttier">${next ? `Prochain palier : ${palName(S, p + 1)} à ${fmt(next.f)} fans` : "Sommet atteint"}</p>
   </header>
-  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "top" ? viewTop() : tab === "vie" ? viewVie() : viewCarriere()}</main>
+  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
   <nav class="dock">
     <button class="next" data-do="week">Semaine suivante<span>+60 énergie</span></button>
-    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["top", "Top 50"], ["vie", "Vie"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
   </nav>
   ${modal ? viewModal() : ""}`;
 }
@@ -760,13 +915,13 @@ function viewStudio() {
   const songs = S.songs.length ? S.songs.map(s => {
     let btns = "";
     if (s.prod === null) btns = studios(S).filter(o => o.ok).map(o => `<button class="sm" data-rec="${s.id}" data-st="${o.id}" ${S.energy < E_REC || S.money < o.prix ? "disabled" : ""}>${o.id === "home" ? "À la maison" : o.n}<small>${E_REC} én.${o.prix ? " · " + fmt(o.prix) + " €" : ""} · son ${o.prod}</small></button>`).join("");
-    else if (!s.rel) btns = `<button class="sm hl" data-rel="${s.id}" ${S.energy < E_REL ? "disabled" : ""}>Sortir en single<small>${E_REL} én.</small></button>`;
+    else if (!s.rel) btns = `<button class="sm hl" data-rel="${s.id}" ${S.energy < E_REL ? "disabled" : ""}>Sortir en single<small>${E_REL} én.</small></button>` + (s.feat ? `<p class="streams">feat. ${esc(s.feat.n)}</p>` : `<button class="sm" data-featfor="${s.id}">Inviter un artiste<small>featuring</small></button>`);
     else {
       btns = `<p class="streams">${fmt(s.last)} écoutes cette semaine · ${fmt(s.total)} au total${s.pos ? ` · <b class="pos">#${s.pos}</b>` : ""}${s.cert ? ` · <b class="cert c${s.cert}">${CERTS[s.cert - 1].n}</b>` : ""}</p>`;
       if (!s.clip) btns += CLIPS.filter(c => palier(S.fans) >= c.min).map(c => `<button class="sm" data-clip="${s.id}" data-c="${c.id}" ${S.energy < c.e || S.money < c.prix ? "disabled" : ""}>${c.n}<small>${c.e} én.${c.prix ? " · " + fmt(c.prix) + " €" : ""}</small></button>`).join("");
       else btns += `<p class="streams">Clip tourné : ${CLIPS.find(c => c.id === s.clip).n.toLowerCase()}</p>`;
     }
-    return `<li class="song"><div class="sh"><span class="len">${Math.floor(s.len / 60)}:${String(s.len % 60).padStart(2, "0")}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.genre)} ${statusOf(s)}</p></div></div><div class="sb">${btns}</div></li>`;
+    return `<li class="song"><div class="sh"><span class="len">${Math.floor(s.len / 60)}:${String(s.len % 60).padStart(2, "0")}</span><div><h3>${esc(s.title)}${s.feat ? ` <small class="ft">feat. ${esc(s.feat.n)}</small>` : ""}</h3><p>${esc(s.genre)} ${statusOf(s)}</p></div></div><div class="sb">${btns}</div></li>`;
   }).join("") : `<li class="empty">Aucune chanson pour l'instant. Écris la première juste au-dessus.</li>`;
   return `
   <div class="trend">Tendance du moment : <b>${GENRES[S.trend]}</b> · +40 % d'écoutes jusqu'à la semaine ${S.trendUntil}</div>
@@ -851,6 +1006,50 @@ function viewVie() {
   <p class="hint">${sal ? `Masse salariale : ${fmt(sal)} € par semaine. Si tu ne peux pas payer, tout le monde part.` : "Personne pour l'instant. Une équipe coûte cher mais démultiplie tes efforts."}</p>
   ${team}`;
 }
+function viewReseaux() {
+  const b = S.buzz;
+  return `<div class="panel"><div class="buzz"><span>Image publique</span><b class="${b >= 10 ? "up" : b <= -10 ? "dn" : ""}">${buzzLabel(b)} (${b > 0 ? "+" : ""}${b})</b></div>
+  <p class="hint">Le buzz multiplie tes nouveaux fans et tes écoutes (de ×0,5 à ×1,5). Il retombe un peu chaque semaine.</p>
+  <div class="soc"><div><span>TikTok</span><b>${fmt(S.social.tt)}</b></div><div><span>Instagram</span><b>${fmt(S.social.ig)}</b></div><div><span>YouTube</span><b>${fmt(S.social.yt)}</b></div></div></div>
+  <h2>Publier</h2>
+  ${card("insta", "Post Instagram", "Rapide. Chaque post de la semaine rapporte moins que le précédent.")}
+  ${card("live", "Live TikTok", "Tu chantes en direct pour tes abonnés. Remonte un peu le moral.")}
+  ${card("video", "Vidéo YouTube", "Une reprise filmée. Gros effet si ta voix est bonne.")}
+  ${card("interview", "Interview radio", "Bonne pour l'image… si tu ne bafouilles pas.")}`;
+}
+function viewMonde() {
+  const p = palier(S.fans);
+  return `<p class="hint top">Ta présence dans chaque pays augmente ton audience : écoutes et ventes d'albums montent avec. Elle baisse un peu chaque semaine si tu n'y retournes pas.</p>
+  <div class="panel kv"><div><span>Portée totale</span><b>×${reach(S).toFixed(2)}</b></div></div>
+  ${MK.map(m => {
+    const pr = S.markets[m.id] || 0, ok = p >= m.min, tc = Math.round(m.tour * 0.35);
+    return `<div class="venue ${ok ? "" : "lock"}"><div class="vh"><h3>${m.n}</h3><span class="cap">poids ×${m.w}</span></div><p>${m.d}</p>
+    ${ok ? `<div class="sbar big"><div style="width:${pr}%"></div></div><p>Présence : ${Math.round(pr)} %</p>
+    <div class="vb"><button class="sm hl" data-promo2="${m.id}" ${S.energy < 40 || S.money < m.cost ? "disabled" : ""}>Tournée promo<small>40 én. · ${fmt(m.cost)} €</small></button>
+    <button class="sm" data-tour2="${m.id}" ${pr < 40 || S.energy < gigE(S, 70) || S.money < tc ? "disabled" : ""}>Tournée de concerts<small>${pr < 40 ? "dès 40 % de présence" : `${gigE(S, 70)} én. · frais ${fmt(tc)} €`}</small></button></div>`
+      : `<p class="req">Dès le palier ${palName(S, m.min)}</p>`}</div>`;
+  }).join("")}`;
+}
+function viewBusiness() {
+  const p = palier(S.fans), immoV = S.inv.immo.reduce((a, v) => a + v, 0);
+  const amts = [1000, 10000, 100000];
+  const invRow = (k, n, d) => `<div class="venue"><div class="vh"><h3>${n}</h3><span class="cap">${fmt(S.inv[k])} €</span></div><p>${d}</p>
+    <div class="vb">${amts.map(a => `<button class="sm" data-inv="${k}" data-amt="${a}" ${S.money < a ? "disabled" : ""}>+${fmt(a)} €</button>`).join("")}<button class="sm" data-out="${k}" ${S.inv[k] < 1 ? "disabled" : ""}>Tout retirer</button></div></div>`;
+  return `<div class="panel kv"><div><span>Patrimoine total</span><b>${fmt(netWorth(S))} €</b></div><div><span>Dont placé</span><b>${fmt(netWorth(S) - S.money)} €</b></div></div>
+  <h2>Merch</h2>
+  <p class="hint">Stock : ${fmt(S.merch)} articles, vendus 25 € pièce chaque semaine selon tes fans et tes concerts.</p>
+  ${MERCH.map((m, i) => p >= m.min ? `<div class="act"><div class="txt"><h3>${m.n}</h3><p>${(m.prix / m.q).toFixed(2).replace(".", ",")} € l'article</p></div><button class="go" data-merch="${i}" ${S.money < m.prix ? "disabled" : ""}><span>${fmt(m.prix)} €</span></button></div>` : "").join("")}
+  <h2>Marques</h2>
+  ${BRANDS.map(b => { const ok = p >= b.min, on = S.brands[b.id];
+    return `<div class="act ${ok ? "" : "dim"}"><div class="txt"><h3>${b.n}</h3><p>${on ? `Rapporte environ ${fmt(S.fans * b.k * buzzMult(S))} € par semaine` : `Revenu chaque semaine selon tes fans et ton image${ok ? "" : ` · dès ${palName(S, b.min)}`}`}</p></div>
+    ${on ? `<span class="here">Lancée</span>` : ok ? `<button class="go" data-brand="${b.id}" ${S.money < b.prix ? "disabled" : ""}><span>${fmt(b.prix)} €</span></button>` : ""}</div>`; }).join("")}
+  <h2>Placements</h2>
+  ${invRow("ep", "Compte d'épargne", "Sans risque, environ 2 % par an.")}
+  ${invRow("etf", "Portefeuille ETF", "Environ 7 % par an en moyenne, mais ça monte et ça descend. Taxe de 10 % sur les plus-values au-delà de 10 000 € à la revente.")}
+  <div class="venue"><div class="vh"><h3>Appartements à louer</h3><span class="cap">${S.inv.immo.length} · ${fmt(immoV)} €</span></div>
+  <p>${fmt(IMMO.prix)} € l'appartement, loué ${fmt(IMMO.loyer)} € par mois. Sa valeur monte d'environ 2,5 % par an.</p>
+  <div class="vb"><button class="sm hl" data-inv="immo" ${S.money < IMMO.prix ? "disabled" : ""}>Acheter<small>${fmt(IMMO.prix)} €</small></button><button class="sm" data-out="immo" ${S.inv.immo.length ? "" : "disabled"}>En vendre un</button></div></div>`;
+}
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
   const p = palier(S.fans);
@@ -879,6 +1078,14 @@ function viewCarriere() {
   <div class="reset">${confirmReset ? `<p>Effacer cette carrière et recommencer à zéro ?</p><button class="sm danger" data-do="reset2">Oui, tout effacer</button><button class="sm" data-do="reset0">Annuler</button>` : `<button class="sm" data-do="reset1">Recommencer une carrière</button>`}</div>`;
 }
 function viewModal() {
+  if (modal.type === "feat") {
+    const s = S.songs.find(x => x.id === modal.id);
+    return `<div class="veil"><div class="sheet"><p class="eyebrow">Featuring · 10 énergie par demande</p><h2 class="mh sm2">« ${esc(s.title)} »</h2>
+    <p class="hint">Plus l'artiste est gros par rapport à toi, plus il risque de refuser. Son public s'ajoute aux écoutes du titre.</p>
+    <div class="flist">${FEATS.map(a => { const o = featOdds(S, a), tried = (s.tried || []).includes(a.i), fee = featFee(a);
+      return `<button class="frow" data-feat="${a.i}" ${tried || o === 0 || S.energy < 10 || S.money < fee ? "disabled" : ""}><span><b>${esc(a.n)}</b><small>${fmt(a.f)} fans · ${fmt(fee)} €</small></span><em>${tried ? "a refusé" : o === 0 ? "hors de portée" : o >= 0.9 ? "partant" : o >= 0.45 ? "à voir" : "peu probable"}</em></button>`; }).join("")}</div>
+    <button class="cta ghost" data-do="closefeat">Fermer</button></div></div>`;
+  }
   if (modal.type === "report") {
     const r = modal.r;
     return `<div class="veil"><div class="sheet"><p class="eyebrow">Fin de la semaine ${r.week}</p>
@@ -918,6 +1125,14 @@ document.addEventListener("click", e => {
   if (d.rel) return after(releaseSong(S, +d.rel));
   if (d.gig) return after(concert(S, d.gig, 1));
   if (d.clip) return after(shootClip(S, +d.clip, d.c));
+  if (d.featfor) { modal = { type: "feat", id: +d.featfor }; return render(); }
+  if (d.feat !== undefined) { const m = askFeat(S, modal.id, +d.feat); const s = S.songs.find(x => x.id === modal.id); if (s && s.feat) modal = null; return after(m); }
+  if (d.promo2) return after(promoAbroad(S, d.promo2));
+  if (d.tour2) return after(tourAbroad(S, d.tour2));
+  if (d.merch !== undefined) return after(buyMerch(S, +d.merch));
+  if (d.brand) return after(launchBrand(S, d.brand));
+  if (d.inv) return after(invest(S, d.inv, +d.amt || 0));
+  if (d.out) return after(withdraw(S, d.out));
   if (d.house !== undefined) return after(moveHouse(S, +d.house));
   if (d.car !== undefined) return after(buyCar(S, +d.car));
   if (d.hire) return after(hire(S, d.hire));
@@ -926,6 +1141,7 @@ document.addEventListener("click", e => {
   if (d.choice !== undefined) { const c = S.pending.choices[+d.choice]; const m = c.f(S); log(S, m); S.pending = null; modal = null; return after(m); }
   switch (d.do) {
     case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
+    case "closefeat": modal = null; return render();
     case "close": modal = S.pending ? { type: "ev", ev: S.pending } : null; save(); return render();
     case "write": { const g = writeGenre === null ? S.genre : GENRES[writeGenre]; return after(writeSong(S, $("#stitle").value, g)); }
     case "album": return after(releaseAlbum(S, albumPromo, $("#atitle").value));
