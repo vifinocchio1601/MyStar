@@ -145,6 +145,8 @@ main h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin
 .gjudge.perfect { color: var(--amber); } .gjudge.ok { color: var(--good); } .gjudge.miss { color: var(--bad); }
 #gres { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 #gres:empty { display: none; }
+.frow.on { background: color-mix(in srgb, var(--amber) 22%, var(--surface)); }
+.frow.on em { color: var(--good); }
 .empty { padding: 16px 0; color: var(--muted); font-size: 14px; }
 
 .venue { padding: 14px; border-radius: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; }
@@ -244,7 +246,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newState(o) {
   const age = o.age, older = Math.max(0, age - 20);
   return {
-    v: 5, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
+    v: 6, name: o.name, prenom: o.prenom, sexe: o.sexe, age, genre: o.genre, week: 1, money: 600, energy: 100,
     voix: Math.round(20 + older * 0.6), ecriture: Math.round(15 + older * 0.9), scene: Math.round(10 + older * 0.4), fans: 0,
     songs: [], nextId: 1, albums: 0, home: 0, label: false,
     flags: {}, trend: ri(0, 4), trendUntil: 9,
@@ -253,7 +255,8 @@ function newState(o) {
     totalEarned: 0, weekIn: 0, weekOut: 0, pending: null, report: null,
     moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0,
     markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0,
-    fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0
+    fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0,
+    mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0
   };
 }
 
@@ -270,7 +273,8 @@ function migrate(S) {
   if (S && S.v === 2) { Object.assign(S, { v: 3, moral: 70, housing: 0, car: 0, team: {}, love: null, pendingLove: null, vacCd: 0, yearBest: 99, awardsWon: 0 }); S.songs.forEach(s => { s.cert = 0; }); }
   if (S && S.v === 3) Object.assign(S, { v: 4, markets: {}, buzz: 0, social: { tt: 0, ig: 0, yt: 0 }, merch: 0, brands: {}, inv: { ep: 0, etf: 0, immo: [] }, gigAud: 0, posts: 0 });
   if (S && S.v === 4) Object.assign(S, { v: 5, fandom: null, look: 0, era: null, eras: 0, sceno: 0, vegasCd: 0, acting: 5, film: null, films: 0, oscars: 0, oscarNom: null, intlAwards: 0, cause: null, impact: 0 });
-  return S && S.v === 5 ? S : null;
+  if (S && S.v === 5) Object.assign(S, { v: 6, mylabel: null, prospects: [], fest: null, tv: null, tvCd: 0 });
+  return S && S.v === 6 ? S : null;
 }
 function titleGen() { return (pick(W1) + pick(W2) + pick(W3)).replace(/^(.)/, c => c.toUpperCase()); }
 
@@ -458,7 +462,7 @@ function endWeek(S) {
   lines.push(`Courses et dépenses courantes : −${fmt(lv)} €`);
   lifeWeek(S, lines);
   bizWeek(S, lines);
-  const pr = { p: null }; starWeek(S, lines, pr);
+  const pr = { p: null }; starWeek(S, lines, pr); labelWeek(S, lines); tvWeek(S, lines, pr);
   chartWeek(S, lines);
   awards(S, lines);
   // SABAM
@@ -949,6 +953,156 @@ function starWeek(S, lines, pendRef) {
       { l: "Décliner", f: () => "Tu passes ton tour cette année." }] };
   }
 }
+// ===== MyStar — label, festival, télé =====
+const FIRST = ["Noa", "Lou", "Mila", "Jade", "Sami", "Tim", "Eden", "Rayan", "Alba", "Nils", "Yuna", "Malo", "Inès", "Côme", "Lena", "Ilyes", "Rose", "Axel"];
+const LAST = ["Martens", "Dubois", "Peeters", "Lambert", "Renard", "Claes", "Wouters", "Simon", "Leroy", "Maes", "Hermans", "Dupont"];
+const STAGE = ["Nova", "Kiki", "Saturne", "Lumen", "Elio", "Mona B", "Rosco", "Zia", "Opale", "Kassio", "Velours", "Nyx"];
+const pname = () => pick(FIRST) + " " + pick(LAST);
+
+// ----- Label -----
+function createLabel(S, name) {
+  name = (name || "").trim(); if (!name || S.mylabel || palier(S.fans) < 4 || S.money < 250000) return null;
+  spend(S, 250000); S.mylabel = { name, artists: [], earned: 0 };
+  const m = `Tu fondes ton label : ${name}.`; log(S, m); return m;
+}
+Object.assign(ACTIONS, {
+  scout: { e: 20, cost: 2000, cond: S => !!S.mylabel, run: S => {
+    S.prospects = [0, 1, 2].map(() => {
+      const t = ri(20, 75), pot = ri(t, Math.min(100, t + 30)), f = ri(50, 3000);
+      return { n: pick(STAGE) + (Math.random() < 0.4 ? " " + pick(["Rose", "Kid", "Blue", "Jr", "Moon"]) : ""), g: pick(GENRES), t, pot, fans: f, adv: Math.round(2000 + t * t * 8 + f * 2) };
+    });
+    return "Tu as repéré trois jeunes talents. Regarde-les dans l'onglet Empire.";
+  } }
+});
+function signProspect(S, i, free) {
+  const p = (S.prospects || [])[i]; if (!p || !S.mylabel || S.mylabel.artists.length >= 6) return null;
+  if (!free && S.money < p.adv) return null;
+  if (!free) spend(S, p.adv);
+  S.mylabel.artists.push({ n: p.n, g: p.g, t: p.t, pot: p.pot, fans: p.fans, base: 0, w0: 0, last: 0, singles: 0, until: S.week + 104 });
+  S.prospects.splice(i, 1);
+  const m = `${p.n} signe chez ${S.mylabel.name}${free ? "" : ` (avance ${fmt(p.adv)} €)`}.`; log(S, m); return m;
+}
+const BUDGETS = [{ n: "Petit budget", prix: 5000, m: 1 }, { n: "Budget moyen", prix: 25000, m: 1.8 }, { n: "Gros budget", prix: 120000, m: 3 }];
+function artistSingle(S, i, b) {
+  const a = S.mylabel && S.mylabel.artists[i], bu = BUDGETS[b];
+  if (!a || S.energy < 10 || S.money < bu.prix) return null;
+  S.energy -= 10; spend(S, bu.prix); a.singles++;
+  const q = clamp(a.t + rnd(-12, 12), 5, 100);
+  a.base = (a.fans * 1.2 + 2000 + S.fans * 0.01) * Math.pow(q / 60, 2.2) * bu.m * (GENRES[S.trend] === a.g ? 1.4 : 1);
+  a.w0 = S.week;
+  const m = `${a.n} sort un single (${bu.n.toLowerCase()}, qualité ${Math.round(q)}).`; log(S, m); return m;
+}
+function coachArtist(S, i) {
+  const a = S.mylabel && S.mylabel.artists[i]; if (!a || S.energy < 15) return null;
+  S.energy -= 15; const g = Math.max(0.5, (a.pot - a.t) / 5); a.t = Math.min(a.pot, a.t + g);
+  const m = `Tu fais travailler ${a.n} : talent +${g.toFixed(1)}.`; log(S, m); return m;
+}
+function renewArtist(S, i) {
+  const a = S.mylabel && S.mylabel.artists[i]; if (!a) return null;
+  const c = Math.round(10000 + a.fans * 0.3); if (S.money < c) return null;
+  spend(S, c); a.until = S.week + 104; const m = `${a.n} prolonge de deux ans (${fmt(c)} €).`; log(S, m); return m;
+}
+function labelWeek(S, lines) {
+  const L = S.mylabel; if (!L) return;
+  let rev = 0;
+  L.artists = L.artists.filter(a => {
+    const n = a.base ? Math.round(a.base * Math.pow(0.8, S.week - a.w0) + a.fans * 0.002) : Math.round(a.fans * 0.002);
+    a.last = n; rev += n * 0.003 * 0.6;
+    a.fans += Math.round(n * 0.012 * (a.t / 70) / (1 + a.fans / 2000000));
+    if (S.week >= a.until) { lines.push(`Fin de contrat : ${a.n} quitte ${L.name}`); log(S, `${a.n} quitte le label.`); return false; }
+    if (S.week === a.until - 4) lines.push(`Le contrat de ${a.n} se termine dans 4 semaines`);
+    return true;
+  });
+  rev = Math.round(rev);
+  if (rev > 0) { earn(S, rev); L.earned += rev; lines.push(`${L.name} : +${fmt(rev)} € d'écoutes de tes artistes`); }
+}
+
+// ----- Festival -----
+const GROUNDS = [
+  { n: "Prairie de campagne", cap: 5000, prix: 80000, slots: 4 },
+  { n: "Domaine avec château", cap: 20000, prix: 350000, slots: 8 },
+  { n: "Plaine géante", cap: 60000, prix: 1500000, slots: 12 }
+];
+const TICKETS = [{ p: 39, f: 1.2 }, { p: 69, f: 1 }, { p: 99, f: 0.8 }, { p: 149, f: 0.55 }];
+const ROSTER = FEATS.filter(a => a.f <= 4000000);
+function createFest(S, name) {
+  name = (name || "").trim(); if (!name || S.fest || palier(S.fans) < 4 || S.money < GROUNDS[0].prix) return null;
+  spend(S, GROUNDS[0].prix); S.fest = { name, g: 0, line: [], mine: [], price: 1, editions: 0, lastYear: -1, best: 0 };
+  const m = `Tu crées ton festival : ${name}.`; log(S, m); return m;
+}
+function upgradeGround(S) { const F = S.fest, n = GROUNDS[F && F.g + 1]; if (!F || !n || S.money < n.prix) return null; spend(S, n.prix); F.g++; const m = `Ton festival déménage : ${n.n}.`; log(S, m); return m; }
+function toggleBook(S, i, mine) {
+  const F = S.fest; if (!F) return null; const arr = mine ? F.mine : F.line, k = arr.indexOf(i);
+  if (k >= 0) arr.splice(k, 1); else { if (F.line.length + F.mine.length >= GROUNDS[F.g].slots) return null; arr.push(i); }
+  return null;
+}
+function festWindow(S) { const w = S.week % 52; return w >= 26 && w <= 32; }
+function festForecast(S) {
+  const F = S.fest, G = GROUNDS[F.g], t = TICKETS[F.price];
+  const draw = F.line.reduce((a, i) => a + ROSTER[i].f * 0.01, 0) + F.mine.reduce((a, i) => a + ((S.mylabel && S.mylabel.artists[i]) ? S.mylabel.artists[i].fans * 0.01 : 0), 0) + S.fans * reach(S) * 0.008;
+  const cachets = F.line.reduce((a, i) => a + Math.round(ROSTER[i].f * 0.12 + 2000), 0);
+  const att = Math.round(Math.min(G.cap * 3, draw * t.f * buzzMult(S)));
+  return { att, cachets, fixed: G.cap * 3 * 25, cap: G.cap * 3, price: t.p };
+}
+function runFest(S) {
+  const F = S.fest, yr = Math.floor(S.week / 52);
+  if (!F || !festWindow(S) || F.lastYear === yr || S.energy < 50) return null;
+  const fc = festForecast(S); if (S.money < fc.cachets + fc.fixed * 0.3) return null;
+  S.energy -= 50; S.active = true; F.lastYear = yr; F.editions++;
+  const r = Math.random(), wx = r < 0.55 ? { n: "grand soleil", m: 1.05, c: 0 } : r < 0.85 ? { n: "quelques averses", m: 0.9, c: 0 } : { n: "un gros orage", m: 0.7, c: 0.15 };
+  const att = Math.round(fc.att * wx.m);
+  const rev = att * fc.price + att * 18;
+  const cost = fc.cachets + fc.fixed + Math.round(fc.fixed * wx.c);
+  const net = rev - cost;
+  if (net >= 0) earn(S, net); else spend(S, -net);
+  const fg = Math.round(att * 0.25 * sat(S) + S.fans * 0.01); S.fans += fg; S.buzz = clamp(S.buzz + (att >= fc.cap * 0.9 ? 15 : 5), -50, 50);
+  if (S.mylabel) F.mine.forEach(i => { const a = S.mylabel.artists[i]; if (a) a.fans += Math.round(att * 0.05); });
+  F.best = Math.max(F.best, att);
+  const m = `${F.name}, édition ${F.editions} : ${wx.n}, ${fmt(att)} festivaliers sur 3 jours (${Math.round(att / fc.cap * 100)} % de remplissage), ${net >= 0 ? "bénéfice" : "perte"} de ${fmt(Math.abs(net))} €, +${fmt(fg)} fans.`;
+  log(S, m); return m;
+}
+
+// ----- Télé et jury -----
+function tvCachet(S) { return 3000 * Math.pow(2, Math.max(0, palier(S.fans) - 3)); }
+function startTV(S) {
+  if (S.tv || S.tvCd > 0 || palier(S.fans) < 3) return null;
+  S.tv = { ep: 0, aud: 0, cands: [0, 1, 2, 3].map(() => ({ n: pname(), v: ri(30, 60), c: ri(30, 70), out: false })) };
+  const m = `Tu deviens jurée·juré de « La Voix d'Or ». Saison de 10 émissions, ${fmt(tvCachet(S))} € par émission.`; log(S, m); return m;
+}
+function coachCand(S, i) {
+  const c = S.tv && S.tv.cands[i]; if (!c || c.out || S.energy < 15) return null;
+  S.energy -= 15; const g = (100 - c.v) / 6; c.v = Math.min(100, c.v + g); c.c = Math.min(100, c.c + g / 2);
+  const m = `Coaching de ${c.n} : voix +${g.toFixed(1)}.`; log(S, m); return m;
+}
+function candScore(c) { return c.v * 0.6 + c.c * 0.4 + rnd(-10, 10); }
+function tvWeek(S, lines, pr) {
+  if (S.tvCd > 0) S.tvCd--;
+  const T = S.tv; if (!T) return;
+  T.ep++; const cach = tvCachet(S); earn(S, cach);
+  const alive = T.cands.filter(c => !c.out);
+  const q = alive.reduce((a, c) => a + c.v, 0) / alive.length;
+  const aud = Math.round((600000 + S.fans * 0.3) * (0.7 + q / 200) * buzzMult(S) * (1 + T.ep * 0.04));
+  T.aud = aud; const fg = Math.round(aud * 0.004 * sat(S)); S.fans += fg;
+  lines.push(`La Voix d'Or, émission ${T.ep} : ${fmt(aud)} téléspectateurs, cachet ${fmt(cach)} €, +${fmt(fg)} fans`);
+  if ([3, 5, 7].includes(T.ep) && alive.length > 1) {
+    const sc = alive.map(c => ({ c, s: candScore(c) })).sort((a, b) => a.s - b.s);
+    sc[0].c.out = true; lines.push(`Ton équipe perd ${sc[0].c.n}, éliminé·e ce soir`);
+  }
+  if (T.ep >= 10) {
+    const best = alive.filter(c => !c.out).sort((a, b) => candScore(b) - candScore(a))[0];
+    const win = best && Math.random() < clamp((candScore(best) - 30) / 70, 0.1, 0.85);
+    if (win) {
+      S.buzz = clamp(S.buzz + 25, -50, 50); const g = Math.round(S.fans * 0.04); S.fans += g;
+      lines.push(`Finale : ${best.n} gagne La Voix d'Or ! Ton équipe triomphe, +${fmt(g)} fans`); log(S, `${best.n} gagne La Voix d'Or avec toi.`);
+      if (S.mylabel && S.mylabel.artists.length < 6) {
+        S.prospects = S.prospects || [];
+        S.prospects.unshift({ n: best.n, g: S.genre, t: Math.round(best.v * 0.8), pot: Math.min(100, Math.round(best.v) + 10), fans: 150000, adv: 0, winner: true });
+        lines.push(`${best.n} veut signer gratuitement chez ${S.mylabel.name} (onglet Empire)`);
+      }
+    } else lines.push(`Finale : ton candidat ${best ? best.n : ""} échoue au pied du podium`);
+    S.tv = null; S.tvCd = 16;
+  }
+}
 // ===== MyStar — guide de départ et déblocage des onglets =====
 const QUESTS = [
   { t: "Poste ta première vidéo", h: "Agenda → Poster une vidéo", ok: S => S.fans > 0, r: 50 },
@@ -972,9 +1126,9 @@ const TAB_UNLOCK = {
   top: S => S.songs.some(s => s.rel),
   reseaux: S => palier(S.fans) >= 1, vie: S => palier(S.fans) >= 1,
   business: S => palier(S.fans) >= 1, star: S => palier(S.fans) >= 2,
-  monde: S => palier(S.fans) >= 3, carriere: S => true
+  monde: S => palier(S.fans) >= 3, empire: S => palier(S.fans) >= 3, carriere: S => true
 };
-const TAB_NAMES = { top: "Top 50", reseaux: "Réseaux", vie: "Vie", business: "Business", star: "Star", monde: "Monde" };
+const TAB_NAMES = { top: "Top 50", reseaux: "Réseaux", vie: "Vie", business: "Business", star: "Star", monde: "Monde", empire: "Empire" };
 // renvoie les messages à afficher (quête validée, onglet ouvert)
 function checkGuide(S) {
   const out = [];
@@ -1058,10 +1212,10 @@ function render() {
     <div class="prog"><div style="width:${(prog * 100).toFixed(1)}%"></div></div>
     <p class="nexttier">${next ? `Prochain palier : ${palName(S, p + 1)} à ${fmt(next.f)} fans` : "Sommet atteint"}</p>
   </header>
-  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "star" ? viewStar() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
+  <main id="main">${tab === "agenda" ? viewAgenda() : tab === "studio" ? viewStudio() : tab === "scene" ? viewScene() : tab === "star" ? viewStar() : tab === "empire" ? viewEmpire() : tab === "top" ? viewTop() : tab === "reseaux" ? viewReseaux() : tab === "monde" ? viewMonde() : tab === "business" ? viewBusiness() : tab === "vie" ? viewVie() : viewCarriere()}</main>
   <nav class="dock">
     <button class="next" data-do="week">Semaine suivante<span>+60 énergie</span></button>
-    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["star", "Star"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["vie", "Vie"], ["carriere", "Carrière"]].filter(([k]) => TAB_UNLOCK[k](S) || tab === k).map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["agenda", "Agenda"], ["studio", "Studio"], ["scene", "Scène"], ["star", "Star"], ["top", "Top 50"], ["reseaux", "Réseaux"], ["monde", "Monde"], ["business", "Business"], ["empire", "Empire"], ["vie", "Vie"], ["carriere", "Carrière"]].filter(([k]) => TAB_UNLOCK[k](S) || tab === k).map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>
   </nav>
   ${modal ? viewModal() : ""}`;
 }
@@ -1330,6 +1484,42 @@ function viewGig() {
     <button class="sm" data-gigskip="1">Passer le mini-jeu (résultat moyen)</button></div>
   <div id="gres"></div></div></div>`;
 }
+function viewEmpire() {
+  const p = palier(S.fans), L = S.mylabel, F = S.fest, T = S.tv;
+  // télé
+  let tv = "";
+  if (T) tv = `<div class="panel"><p class="hint">Émission ${T.ep}/10${T.aud ? ` · dernière audience ${fmt(T.aud)}` : ""} · ${fmt(tvCachet(S))} € par émission. Éliminations après les émissions 3, 5 et 7, finale à la 10e.</p>
+    ${T.cands.map((c, i) => `<div class="act ${c.out ? "dim" : ""}"><div class="txt"><h3>${esc(c.n)}</h3><p>${c.out ? "Éliminé·e" : `Voix ${Math.round(c.v)} · charisme ${Math.round(c.c)}`}</p></div>${c.out ? "" : `<button class="go" data-ccoach="${i}" ${S.energy < 15 ? "disabled" : ""}><span>Coacher</span><em>15 én.</em></button>`}</div>`).join("")}</div>`;
+  else tv = `<div class="act"><div class="txt"><h3>La Voix d'Or</h3><p>${p < 3 ? `Dès ${palName(S, 3)}.` : S.tvCd > 0 ? `Prochaine saison dans ${S.tvCd} semaines.` : `La chaîne te veut comme jurée·juré : 10 émissions à ${fmt(tvCachet(S))} € chacune, des audiences énormes et 4 candidats à coacher.`}</p></div>
+    ${p >= 3 && S.tvCd <= 0 ? `<button class="go" data-do="tv"><span>Signer</span></button>` : ""}</div>`;
+  // label
+  let lab;
+  if (!L) lab = p >= 4 ? `<div class="panel"><label class="lbl" for="lname">Nom de ton label (250 000 €)</label><input id="lname" maxlength="28" placeholder="Ex. Comète Records" autocomplete="off"><button class="cta" data-do="mklabel" ${S.money < 250000 ? "disabled" : ""}>Fonder mon label</button></div>` : `<p class="hint">Dès ${palName(S, 4)}, tu pourras fonder ton propre label.</p>`;
+  else lab = `<div class="panel kv"><div><span>${esc(L.name)}</span><b>${L.artists.length}/6 artistes</b></div><div><span>Gagné grâce au label</span><b>${fmt(L.earned)} €</b></div></div>
+    ${card("scout", "Repérer des talents", "Trois jeunes artistes à découvrir.")}
+    ${(S.prospects || []).map((x, i) => `<div class="act"><div class="txt"><h3>${esc(x.n)}${x.winner ? " · gagnant·e télé" : ""}</h3><p>${x.g} · talent ${x.t} · potentiel ${x.pot} · ${fmt(x.fans)} fans</p></div><button class="go" data-sign="${i}" ${L.artists.length >= 6 || S.money < x.adv ? "disabled" : ""}><span>${x.adv ? fmt(x.adv) + " €" : "Gratuit"}</span><em>Signer</em></button></div>`).join("")}
+    ${L.artists.map((a, i) => `<div class="venue"><div class="vh"><h3>${esc(a.n)}</h3><span class="cap">${fmt(a.fans)} fans</span></div>
+      <p>${a.g} · talent ${Math.round(a.t)}/${a.pot} · ${a.singles} single${a.singles > 1 ? "s" : ""} · ${fmt(a.last)} écoutes cette semaine · contrat jusqu'à la semaine ${a.until}</p>
+      <div class="vb">${BUDGETS.map((b, k) => `<button class="sm ${k === 0 ? "hl" : ""}" data-asingle="${i}" data-b="${k}" ${S.energy < 10 || S.money < b.prix ? "disabled" : ""}>Single<small>${b.n.toLowerCase()} · ${fmt(b.prix)} €</small></button>`).join("")}
+      <button class="sm" data-acoach="${i}" ${S.energy < 15 ? "disabled" : ""}>Faire travailler<small>15 én.</small></button>
+      ${a.until - S.week <= 12 ? `<button class="sm" data-arenew="${i}">Prolonger 2 ans<small>${fmt(10000 + a.fans * 0.3)} €</small></button>` : ""}</div></div>`).join("")}`;
+  // festival
+  let fest;
+  if (!F) fest = p >= 4 ? `<div class="panel"><label class="lbl" for="fname">Nom de ton festival (terrain à ${fmt(GROUNDS[0].prix)} €)</label><input id="fname" maxlength="28" placeholder="Ex. Comète Fest" autocomplete="off"><button class="cta" data-do="mkfest" ${S.money < GROUNDS[0].prix ? "disabled" : ""}>Créer mon festival</button></div>` : `<p class="hint">Dès ${palName(S, 4)}, tu pourras créer ton festival.</p>`;
+  else {
+    const G = GROUNDS[F.g], ng = GROUNDS[F.g + 1], fc = festForecast(S), yr = Math.floor(S.week / 52), done = F.lastYear === yr, w = S.week % 52;
+    fest = `<div class="panel kv"><div><span>${esc(F.name)}</span><b>${G.n}</b></div><div><span>Capacité (3 jours)</span><b>${fmt(G.cap * 3)}</b></div><div><span>Éditions</span><b>${F.editions}</b></div></div>
+    ${ng ? `<div class="act"><div class="txt"><h3>${ng.n}</h3><p>${fmt(ng.cap)} places par jour, ${ng.slots} artistes à l'affiche.</p></div><button class="go" data-do="ground" ${S.money < ng.prix ? "disabled" : ""}><span>${fmt(ng.prix)} €</span></button></div>` : ""}
+    <p class="hint">Affiche : ${F.line.length + F.mine.length}/${G.slots} artistes. Tu es la tête d'affiche, ta notoriété attire déjà du monde.</p>
+    <div class="chips">${TICKETS.map((t, i) => `<button class="chip ${i === F.price ? "sel" : ""}" data-tprice="${i}">Pass ${t.p} €</button>`).join("")}</div>
+    ${S.mylabel && S.mylabel.artists.length ? `<p class="lbl">Tes artistes (gratuits)</p><div class="chips">${S.mylabel.artists.map((a, i) => `<button class="chip ${F.mine.includes(i) ? "sel" : ""}" data-book="${i}" data-mine="1">${esc(a.n)}</button>`).join("")}</div>` : ""}
+    <p class="lbl">Artistes invités</p>
+    <div class="flist">${ROSTER.map((a, i) => `<button class="frow ${F.line.includes(i) ? "on" : ""}" data-book="${i}"><span><b>${esc(a.n)}</b><small>${fmt(a.f)} fans · cachet ${fmt(a.f * 0.12 + 2000)} €</small></span><em>${F.line.includes(i) ? "À l'affiche" : "Inviter"}</em></button>`).join("")}</div>
+    <div class="panel kv"><div><span>Affluence prévue</span><b>${fmt(fc.att)} (${Math.round(fc.att / fc.cap * 100)} %)</b></div><div><span>Billets et bars</span><b>${fmt(fc.att * (fc.price + 18))} €</b></div><div><span>Cachets</span><b>−${fmt(fc.cachets)} €</b></div><div><span>Scènes, sécurité, staff</span><b>−${fmt(fc.fixed)} €</b></div><div><span>Résultat prévu (hors météo)</span><b>${fmt(fc.att * (fc.price + 18) - fc.cachets - fc.fixed)} €</b></div></div>
+    <button class="cta" data-do="runfest" ${done || !festWindow(S) || S.energy < 50 ? "disabled" : ""}>${done ? "Édition de cette année terminée" : festWindow(S) ? "Lancer le festival · 50 énergie" : `Le festival a lieu en été (semaines ${yr * 52 + 26} à ${yr * 52 + 32})`}</button>`;
+  }
+  return `<h2>Télé</h2>${tv}<h2>Ton label</h2>${lab}<h2>Ton festival</h2>${fest}`;
+}
 function bar(n, v) { return `<div class="stat"><span>${n}</span><div class="sbar"><div style="width:${v}%"></div></div><b>${Math.round(v)}</b></div>`; }
 function viewCarriere() {
   const p = palier(S.fans);
@@ -1410,6 +1600,13 @@ document.addEventListener("click", e => {
   if (d.clip) return after(shootClip(S, +d.clip, d.c));
   if (d.featfor) { modal = { type: "feat", id: +d.featfor }; return render(); }
   if (d.feat !== undefined) { const m = askFeat(S, modal.id, +d.feat); const s = S.songs.find(x => x.id === modal.id); if (s && s.feat) modal = null; return after(m); }
+  if (d.sign !== undefined) return after(signProspect(S, +d.sign));
+  if (d.asingle !== undefined) return after(artistSingle(S, +d.asingle, +d.b));
+  if (d.acoach !== undefined) return after(coachArtist(S, +d.acoach));
+  if (d.arenew !== undefined) return after(renewArtist(S, +d.arenew));
+  if (d.book !== undefined) { toggleBook(S, +d.book, d.mine === "1"); save(); return render(); }
+  if (d.tprice !== undefined) { S.fest.price = +d.tprice; save(); return render(); }
+  if (d.ccoach !== undefined) return after(coachCand(S, +d.ccoach));
   if (d.look !== undefined) return after(setLook(S, +d.look));
   if (d.cause !== undefined) { causeSel = +d.cause; return render(); }
   if (d.don) return after(donate(S, +d.don));
@@ -1431,6 +1628,11 @@ document.addEventListener("click", e => {
   switch (d.do) {
     case "week": endWeek(S); modal = { type: "report", r: S.report }; return after();
     case "fandom": return after(setFandom(S, $("#fandom").value));
+    case "mklabel": return after(createLabel(S, $("#lname").value));
+    case "mkfest": return after(createFest(S, $("#fname").value));
+    case "ground": return after(upgradeGround(S));
+    case "runfest": return after(runFest(S));
+    case "tv": return after(startTV(S));
     case "sceno": return after(buySceno(S));
     case "found": return after(createFoundation(S, causeSel));
     case "closefeat": modal = null; return render();
